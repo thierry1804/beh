@@ -14,6 +14,8 @@ concurrency:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      POST_DEPLOY_CMD: ${{ secrets.POST_DEPLOY_CMD }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -55,12 +57,12 @@ jobs:
           rsync -az --delete -e "ssh -p $SSH_PORT" dist/ "$SSH_USER@$SSH_HOST:$DEPLOY_PATH"
 
       - name: Post-deploy command (optional)
-        if: ${{ secrets.POST_DEPLOY_CMD != '' }}
+        if: ${{ env.POST_DEPLOY_CMD != '' }}
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
-          POST_DEPLOY_CMD: ${{ secrets.POST_DEPLOY_CMD }}
+          POST_DEPLOY_CMD: ${{ env.POST_DEPLOY_CMD }}
         run: |
           set -e
           if [ -z "$SSH_PORT" ]; then SSH_PORT=22; fi
