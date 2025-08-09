@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Outlet, NavLink } from 'react-router-dom'
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { AppBar, Box, CssBaseline, Divider, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography, Stack, Avatar, Tooltip } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 import LightModeIcon from '@mui/icons-material/LightMode'
@@ -12,28 +12,39 @@ import InventoryIcon from '@mui/icons-material/Inventory'
 import LocalShippingIcon from '@mui/icons-material/LocalShipping'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import LogoutIcon from '@mui/icons-material/Logout'
 
 const EXPANDED_WIDTH = 240
 const COLLAPSED_WIDTH = 72
 const APPBAR_HEIGHT = 56
 
 import { useLocalStorage } from '../lib/useLocalStorage'
+import { useColorMode } from '../theme/ThemeProviderWithToggle'
+import { useAuth } from '../auth/AuthProvider'
 
 export default function DashboardLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const toggle = () => setMobileOpen(!mobileOpen)
-  const [mode, setMode] = useLocalStorage('ui_mode', 'light')
-  const toggleMode = () => setMode((m) => (m === 'light' ? 'dark' : 'light'))
+  const { mode, toggleMode } = useColorMode()
   const [collapsed, setCollapsed] = useLocalStorage('nav_collapsed', false)
   const drawerWidth = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH
+  const { signOut } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const onLogout = async () => {
+    await signOut()
+    navigate('/login', { replace: true })
+  }
+
+  const title = getPageTitle(location.pathname)
 
   const menu = [
+    { to: '/dashboard', label: 'Tableaux de bord', icon: <InsightsIcon /> },
     { to: '/sessions', label: 'Sessions', icon: <ListAltIcon /> },
     { to: '/capture', label: 'Saisie', icon: <AddShoppingCartIcon /> },
     { to: '/pending', label: 'En attente', icon: <PeopleIcon /> },
     { to: '/prep', label: 'Préparation', icon: <InventoryIcon /> },
     { to: '/delivery', label: 'Livraisons', icon: <LocalShippingIcon /> },
-    { to: '/dashboard', label: 'Tableaux', icon: <InsightsIcon /> },
   ]
 
   const drawer = (
@@ -71,11 +82,16 @@ export default function DashboardLayout() {
           <IconButton color="inherit" edge="start" onClick={toggle} sx={{ mr: 2, display: { sm: 'none' } }}>
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap sx={{ flexGrow: 1 }}>BEHX</Typography>
+          <Typography variant="h6" noWrap sx={{ mr: 'auto', textAlign: 'left' }}>{title}</Typography>
           <Stack direction="row" alignItems="center" spacing={1}>
             <Tooltip title={mode === 'light' ? 'Basculer en sombre' : 'Basculer en clair'}>
               <IconButton color="primary" onClick={toggleMode}>
                 {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Se déconnecter">
+              <IconButton color="primary" onClick={onLogout}>
+                <LogoutIcon />
               </IconButton>
             </Tooltip>
             <Avatar sx={{ width: 32, height: 32 }}>B</Avatar>
@@ -90,12 +106,24 @@ export default function DashboardLayout() {
           {drawer}
         </Drawer>
       </Box>
-      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, md: 3 }, width: { sm: `calc(100% - ${drawerWidth}px)` }, maxWidth: 1200, mx: 'auto' }}>
+      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, md: 3 } }}>
         <Box sx={{ height: APPBAR_HEIGHT }} />
         <Outlet />
       </Box>
     </Box>
   )
+}
+
+function getPageTitle(pathname) {
+  if (pathname === '/' || pathname === '') return 'Tableaux de bord';
+  if (pathname.startsWith('/sessions')) return 'Sessions Live TikTok';
+  if (pathname.startsWith('/capture')) return 'Saisie';
+  if (pathname.startsWith('/pending')) return 'En attente de livraison';
+  if (pathname.startsWith('/prep')) return 'Préparation';
+  if (pathname.startsWith('/delivery')) return 'Livraisons';
+  if (pathname.startsWith('/dashboard')) return 'Tableaux de bord';
+  if (pathname.startsWith('/customer')) return 'Client';
+  return 'BEHX';
 }
 
 

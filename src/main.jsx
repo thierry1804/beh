@@ -2,7 +2,6 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import './styles/theme.css'
-import App from './App.jsx'
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom'
 import SessionsPage from './pages/Sessions.jsx'
 import CapturePage from './pages/Capture.jsx'
@@ -24,7 +23,7 @@ createRoot(document.getElementById('root')).render(
             <Route path="/login" element={<LoginPage />} />
             <Route element={<RequireAuth />}>
               <Route element={<DashboardLayout />}>
-                <Route index element={<Navigate to="/capture" replace />} />
+                <Route index element={<Dashboard />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/sessions" element={<SessionsPage />} />
                 <Route path="/capture" element={<CapturePage />} />

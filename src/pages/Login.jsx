@@ -1,14 +1,28 @@
 import { useState } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { useLocation, useNavigate } from 'react-router-dom'
+import {
+  Alert,
+  Box,
+  Button,
+  Container,
+  Paper,
+  Stack,
+  TextField,
+  Typography
+} from '@mui/material'
+import MailOutlineIcon from '@mui/icons-material/MailOutline'
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
+import LoginIcon from '@mui/icons-material/Login'
+import { supabase } from '../lib/supabaseClient'
 
 export default function LoginPage() {
   const { signInWithPassword, signInWithOtp } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [mode, setMode] = useState('password')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [messageType, setMessageType] = useState('info')
   const navigate = useNavigate()
   const location = useLocation()
   const from = (location.state && location.state.from) || '/capture'
@@ -18,42 +32,87 @@ export default function LoginPage() {
     setLoading(true)
     setMessage('')
     try {
-      if (mode === 'password') {
-        const { error } = await signInWithPassword(email, password)
-        if (error) setMessage(error.message)
-        else navigate(from, { replace: true })
-      } else {
-        const { error } = await signInWithOtp(email)
-        if (!error) setMessage("Lien de connexion envoyé. Vérifiez votre email.")
-        else setMessage(error.message)
-      }
+      const { error } = await signInWithPassword(email, password)
+      if (error) { setMessageType('error'); setMessage(error.message) }
+      else navigate(from, { replace: true })
     } finally {
       setLoading(false)
     }
   }
 
+  async function onForgotPassword() {
+    if (!email) {
+      setMessageType('info')
+      setMessage('Veuillez saisir votre email pour recevoir le lien de réinitialisation.')
+      return
+    }
+    setLoading(true)
+    setMessage('')
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/beh/login'
+    })
+    setLoading(false)
+    if (error) {
+      setMessageType('error')
+      setMessage(error.message)
+    } else {
+      setMessageType('success')
+      setMessage('Si un compte existe pour cet email, un lien de réinitialisation a été envoyé.')
+    }
+  }
+
   return (
-    <div style={{ minHeight: '60vh', display: 'grid', placeItems: 'center', padding: 16 }}>
-      <form onSubmit={onSubmit} style={{ width: 360, maxWidth: '90vw', border: '1px solid #eee', borderRadius: 8, padding: 16, background: 'white' }}>
-        <h2 style={{ marginTop: 0 }}>Connexion</h2>
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: 'block', fontWeight: 600, marginBottom: 6 }}>Email</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: '100%' }} />
-        </div>
-        {mode === 'password' && (
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 6 }}>Mot de passe</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ width: '100%' }} />
-          </div>
-        )}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-          <label><input type="radio" name="mode" checked={mode === 'password'} onChange={() => setMode('password')} /> Mot de passe</label>
-          <label><input type="radio" name="mode" checked={mode === 'otp'} onChange={() => setMode('otp')} /> Lien magique</label>
-        </div>
-        {message && <div style={{ color: '#0d47a1', marginBottom: 8 }}>{message}</div>}
-        <button type="submit" disabled={loading} style={{ width: '100%', marginTop: 8 }}>{loading ? '...' : (mode === 'password' ? 'Se connecter' : 'Envoyer le lien')}</button>
-      </form>
-    </div>
+    <Container maxWidth="xs" sx={{ minHeight: '70vh', display: 'grid', placeItems: 'center' }}>
+      <Paper component="form" onSubmit={onSubmit} elevation={2} sx={{ p: 3, width: '100%' }}>
+        <Stack spacing={2}>
+          <Stack spacing={0.5} alignItems="center">
+            <LockOutlinedIcon color="primary" />
+            <Typography variant="h5" fontWeight={700}>Connexion</Typography>
+          </Stack>
+
+          <TextField
+            label="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            fullWidth
+            autoComplete="email"
+            InputProps={{ startAdornment: <Box sx={{ pr: 1, color: 'text.secondary' }}><MailOutlineIcon fontSize="small" /></Box> }}
+          />
+
+          <TextField
+            label="Mot de passe"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            fullWidth
+            autoComplete="current-password"
+            InputProps={{ startAdornment: <Box sx={{ pr: 1, color: 'text.secondary' }}><LockOutlinedIcon fontSize="small" /></Box> }}
+          />
+
+          <Box sx={{ textAlign: 'right' }}>
+            <Button onClick={onForgotPassword} size="small">Mot de passe oublié ?</Button>
+          </Box>
+
+          {message && (
+            <Alert severity={messageType}>{message}</Alert>
+          )}
+
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            disabled={loading}
+            startIcon={<LoginIcon />}
+            fullWidth
+          >
+            {loading ? '...' : 'Se connecter'}
+          </Button>
+        </Stack>
+      </Paper>
+    </Container>
   )
 }
 
