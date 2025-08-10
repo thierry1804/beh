@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { AppBar, Box, CssBaseline, Divider, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography, Stack, Avatar, Tooltip } from '@mui/material'
+import { AppBar, Box, CssBaseline, Divider, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography, Stack, Avatar, Tooltip, Menu, MenuItem } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 import LightModeIcon from '@mui/icons-material/LightMode'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
@@ -13,6 +13,8 @@ import LocalShippingIcon from '@mui/icons-material/LocalShipping'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import LogoutIcon from '@mui/icons-material/Logout'
+import PersonIcon from '@mui/icons-material/Person'
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 
 const EXPANDED_WIDTH = 240
 const COLLAPSED_WIDTH = 72
@@ -21,31 +23,55 @@ const APPBAR_HEIGHT = 56
 import { useLocalStorage } from '../lib/useLocalStorage'
 import { useColorMode } from '../theme/ThemeProviderWithToggle'
 import { useAuth } from '../auth/AuthProvider'
+import { useProfile } from '../lib/useProfile'
 
 export default function DashboardLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [userMenuAnchor, setUserMenuAnchor] = useState(null)
   const toggle = () => setMobileOpen(!mobileOpen)
   const { mode, toggleMode } = useColorMode()
   const [collapsed, setCollapsed] = useLocalStorage('nav_collapsed', false)
   const drawerWidth = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH
-  const { signOut } = useAuth()
+  const { signOut, user } = useAuth()
+  const { isAdmin, isOperator } = useProfile()
   const navigate = useNavigate()
   const location = useLocation()
+
   const onLogout = async () => {
     await signOut()
     navigate('/login', { replace: true })
   }
 
+  const handleUserMenuOpen = (event) => {
+    setUserMenuAnchor(event.currentTarget)
+  }
+
+  const handleUserMenuClose = () => {
+    setUserMenuAnchor(null)
+  }
+
+  const handleProfileClick = () => {
+    handleUserMenuClose()
+    navigate('/profile')
+  }
+
   const title = getPageTitle(location.pathname)
 
   const menu = [
-    { to: '/dashboard', label: 'Tableaux de bord', icon: <InsightsIcon /> },
-    { to: '/sessions', label: 'Sessions', icon: <ListAltIcon /> },
-    { to: '/capture', label: 'Saisie', icon: <AddShoppingCartIcon /> },
-    { to: '/pending', label: 'En attente', icon: <PeopleIcon /> },
-    { to: '/prep', label: 'Préparation', icon: <InventoryIcon /> },
-    { to: '/delivery', label: 'Livraisons', icon: <LocalShippingIcon /> },
+    { to: '/dashboard', label: 'Tableaux de bord', icon: <InsightsIcon />, adminOnly: true },
+    { to: '/sessions', label: 'Sessions', icon: <ListAltIcon />, adminOnly: true },
+    { to: '/capture', label: 'Saisie', icon: <AddShoppingCartIcon />, adminOnly: false },
+    { to: '/pending', label: 'En attente', icon: <PeopleIcon />, adminOnly: false },
+    { to: '/prep', label: 'Préparation', icon: <InventoryIcon />, adminOnly: false },
+    { to: '/delivery', label: 'Livraisons', icon: <LocalShippingIcon />, adminOnly: true },
   ]
+
+  // Filtrer le menu selon les permissions
+  const filteredMenu = menu.filter(item => {
+    if (isAdmin) return true // Les admins ont accès à tout
+    if (isOperator) return !item.adminOnly // Les operators n'ont accès qu'aux éléments non adminOnly
+    return false // Les autres utilisateurs n'ont accès à rien
+  })
 
   const drawer = (
     <div>
@@ -59,7 +85,7 @@ export default function DashboardLayout() {
       </Toolbar>
       <Divider />
       <List>
-        {menu.map((m) => (
+        {filteredMenu.map((m) => (
           <Tooltip key={m.to} title={collapsed ? m.label : ''} placement="right">
             <ListItemButton component={NavLink} to={m.to} sx={({ isActive }) => ({
               '&.active': { backgroundColor: 'action.selected' },
@@ -89,12 +115,55 @@ export default function DashboardLayout() {
                 {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
               </IconButton>
             </Tooltip>
-            <Tooltip title="Se déconnecter">
-              <IconButton color="primary" onClick={onLogout}>
-                <LogoutIcon />
-              </IconButton>
-            </Tooltip>
-            <Avatar sx={{ width: 32, height: 32 }}>B</Avatar>
+
+            {/* Menu utilisateur */}
+            {(isAdmin || isOperator) && (
+              <>
+                <Tooltip title="Menu utilisateur">
+                  <IconButton
+                    color="primary"
+                    onClick={handleUserMenuOpen}
+                    sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+                  >
+                    <Avatar sx={{ width: 32, height: 32 }}>
+                      {user?.email?.charAt(0).toUpperCase() || 'U'}
+                    </Avatar>
+                    <KeyboardArrowDownIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Menu
+                  anchorEl={userMenuAnchor}
+                  open={Boolean(userMenuAnchor)}
+                  onClose={handleUserMenuClose}
+                  anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'right',
+                  }}
+                  transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                  }}
+                >
+                  <MenuItem onClick={handleProfileClick}>
+                    <PersonIcon sx={{ mr: 1 }} />
+                    Mon Profil
+                  </MenuItem>
+                  <MenuItem onClick={onLogout}>
+                    <LogoutIcon sx={{ mr: 1 }} />
+                    Se déconnecter
+                  </MenuItem>
+                </Menu>
+              </>
+            )}
+
+            {/* Bouton de déconnexion simple pour les autres utilisateurs */}
+            {!isAdmin && !isOperator && (
+              <Tooltip title="Se déconnecter">
+                <IconButton color="primary" onClick={onLogout}>
+                  <LogoutIcon />
+                </IconButton>
+              </Tooltip>
+            )}
           </Stack>
         </Toolbar>
       </AppBar>
@@ -123,6 +192,7 @@ function getPageTitle(pathname) {
   if (pathname.startsWith('/delivery')) return 'Livraisons';
   if (pathname.startsWith('/dashboard')) return 'Tableaux de bord';
   if (pathname.startsWith('/customer')) return 'Client';
+  if (pathname.startsWith('/profile')) return 'Mon Profil';
   return 'BEHX';
 }
 

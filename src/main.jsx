@@ -8,8 +8,10 @@ import CapturePage from './pages/Capture.jsx'
 import PendingPage from './pages/Pending.jsx'
 import CustomerPage from './pages/Customer.jsx'
 import LoginPage from './pages/Login.jsx'
+import ProfilePage from './pages/Profile.jsx'
 import { AuthProvider } from './auth/AuthProvider.jsx'
 import RequireAuth from './auth/RequireAuth.jsx'
+import RequireRole from './auth/RequireRole.jsx'
 import ThemeProviderWithToggle from './theme/ThemeProviderWithToggle.jsx'
 import DashboardLayout from './layout/DashboardLayout.jsx'
 import Dashboard from './pages/Dashboard.jsx'
@@ -23,14 +25,51 @@ createRoot(document.getElementById('root')).render(
             <Route path="/login" element={<LoginPage />} />
             <Route element={<RequireAuth />}>
               <Route element={<DashboardLayout />}>
-                <Route index element={<Dashboard />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/sessions" element={<SessionsPage />} />
-                <Route path="/capture" element={<CapturePage />} />
-                <Route path="/pending" element={<PendingPage />} />
-                <Route path="/customer/:handle" element={<CustomerPage />} />
-                <Route path="/prep" element={<div style={{ padding: 16 }}>À venir</div>} />
-                <Route path="/delivery" element={<div style={{ padding: 16 }}>À venir</div>} />
+                <Route index element={
+                  <RequireRole adminOnly={true} fallbackPath="/capture">
+                    <Dashboard />
+                  </RequireRole>
+                } />
+                <Route path="/dashboard" element={
+                  <RequireRole adminOnly={true}>
+                    <Dashboard />
+                  </RequireRole>
+                } />
+                <Route path="/sessions" element={
+                  <RequireRole adminOnly={true}>
+                    <SessionsPage />
+                  </RequireRole>
+                } />
+                <Route path="/capture" element={
+                  <RequireRole adminOnly={false} operatorAllowed={true}>
+                    <CapturePage />
+                  </RequireRole>
+                } />
+                <Route path="/pending" element={
+                  <RequireRole adminOnly={false} operatorAllowed={true}>
+                    <PendingPage />
+                  </RequireRole>
+                } />
+                <Route path="/customer/:handle" element={
+                  <RequireRole adminOnly={true}>
+                    <CustomerPage />
+                  </RequireRole>
+                } />
+                <Route path="/profile" element={
+                  <RequireRole adminOnly={false} operatorAllowed={true}>
+                    <ProfilePage />
+                  </RequireRole>
+                } />
+                <Route path="/prep" element={
+                  <RequireRole adminOnly={false} operatorAllowed={true}>
+                    <div style={{ padding: 16 }}>À venir</div>
+                  </RequireRole>
+                } />
+                <Route path="/delivery" element={
+                  <RequireRole adminOnly={true}>
+                    <div style={{ padding: 16 }}>À venir</div>
+                  </RequireRole>
+                } />
               </Route>
             </Route>
           </Routes>
