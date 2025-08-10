@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useLocalStorage } from '../lib/useLocalStorage'
-import { Button, Card, CardContent, Chip, Stack, TextField } from '@mui/material'
+import { Button, Card, CardContent, Chip, Stack } from '@mui/material'
 import PageHeader from '../components/PageHeader'
 
 export default function SessionsPage() {
-  const [name, setName] = useState(defaultSessionName())
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(false)
   const [selectedSessionId, setSelectedSessionId] = useLocalStorage('selectedSessionId', null)
@@ -27,9 +26,10 @@ export default function SessionsPage() {
   async function createSession(e) {
     e.preventDefault()
     setLoading(true)
+    const sessionName = defaultSessionName()
     const { data, error } = await supabase
       .from('sessions')
-      .insert([{ name, start_at: nowIso, status: 'open' }])
+      .insert([{ name: sessionName, start_at: nowIso, status: 'open' }])
       .select()
       .single()
     setLoading(false)
@@ -50,14 +50,25 @@ export default function SessionsPage() {
     setSelectedSessionName(s.name)
   }
 
+  // Vérifier s'il y a déjà une session en cours
+  const hasOpenSession = useMemo(() => {
+    return sessions.some(s => s.status === 'open')
+  }, [sessions])
+
   return (
     <div className="page">
       <PageHeader
         title="Sessions de vente"
         actions={(
           <form onSubmit={createSession} className="toolbar" style={{ display: 'flex', gap: 8 }}>
-            <TextField size="small" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nom de la session" />
-            <Button variant="contained" type="submit" disabled={loading}>Créer</Button>
+            <Button
+              variant="contained"
+              type="submit"
+              disabled={loading || hasOpenSession}
+              title={hasOpenSession ? "Une session est déjà en cours" : ""}
+            >
+              Créer
+            </Button>
           </form>
         )}
       />
