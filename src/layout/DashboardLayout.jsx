@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { AppBar, Box, CssBaseline, Divider, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography, Stack, Avatar, Tooltip, Menu, MenuItem } from '@mui/material'
+import { AppBar, Box, CssBaseline, Divider, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography, Stack, Avatar, Tooltip, Menu, MenuItem, Collapse } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 import LightModeIcon from '@mui/icons-material/LightMode'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
@@ -16,6 +16,9 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import LogoutIcon from '@mui/icons-material/Logout'
 import PersonIcon from '@mui/icons-material/Person'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
+import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart'
 
 const EXPANDED_WIDTH = 240
 const COLLAPSED_WIDTH = 72
@@ -29,6 +32,7 @@ import { useProfile } from '../lib/useProfile'
 export default function DashboardLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [userMenuAnchor, setUserMenuAnchor] = useState(null)
+  const [commandsMenuOpen, setCommandsMenuOpen] = useState(false)
   const toggle = () => setMobileOpen(!mobileOpen)
   const { mode, toggleMode } = useColorMode()
   const [collapsed, setCollapsed] = useLocalStorage('nav_collapsed', false)
@@ -37,6 +41,14 @@ export default function DashboardLayout() {
   const { isAdmin, isOperator } = useProfile()
   const navigate = useNavigate()
   const location = useLocation()
+
+  // Ouvrir automatiquement le menu Commandes si un sous-menu est actif
+  useEffect(() => {
+    const commandsPaths = ['/capture', '/pending']
+    if (commandsPaths.includes(location.pathname)) {
+      setCommandsMenuOpen(true)
+    }
+  }, [location.pathname])
 
   const onLogout = async () => {
     await signOut()
@@ -56,13 +68,25 @@ export default function DashboardLayout() {
     navigate('/profile')
   }
 
+  const handleCommandsMenuToggle = () => {
+    setCommandsMenuOpen(!commandsMenuOpen)
+  }
+
   const title = getPageTitle(location.pathname)
 
   const menu = [
     { to: '/dashboard', label: 'Tableaux de bord', icon: <InsightsIcon />, adminOnly: true },
     { to: '/sessions', label: 'Sessions', icon: <ListAltIcon />, adminOnly: true },
-    { to: '/capture', label: 'Saisie', icon: <AddShoppingCartIcon />, adminOnly: false },
-    { to: '/pending', label: 'En attente', icon: <ShoppingCartCheckoutIcon />, adminOnly: false },
+    {
+      type: 'group',
+      label: 'Commandes',
+      icon: <ShoppingCartIcon />,
+      adminOnly: false,
+      children: [
+        { to: '/capture', label: 'Saisie', icon: <AddShoppingCartIcon />, adminOnly: false },
+        { to: '/pending', label: 'En attente', icon: <ShoppingCartCheckoutIcon />, adminOnly: false },
+      ]
+    },
     { to: '/customers', label: 'Clients', icon: <PeopleIcon />, adminOnly: true },
     { to: '/prep', label: 'Préparation', icon: <InventoryIcon />, adminOnly: false },
     { to: '/delivery', label: 'Livraisons', icon: <LocalShippingIcon />, adminOnly: true },
@@ -71,9 +95,146 @@ export default function DashboardLayout() {
   // Filtrer le menu selon les permissions
   const filteredMenu = menu.filter(item => {
     if (isAdmin) return true // Les admins ont accès à tout
-    if (isOperator) return !item.adminOnly // Les operators n'ont accès qu'aux éléments non adminOnly
+    if (isOperator) {
+      if (item.type === 'group') {
+        // Pour les groupes, filtrer les enfants
+        const filteredChildren = item.children.filter(child => !child.adminOnly)
+        return filteredChildren.length > 0 ? { ...item, children: filteredChildren } : false
+      }
+      return !item.adminOnly // Les operators n'ont accès qu'aux éléments non adminOnly
+    }
     return false // Les autres utilisateurs n'ont accès à rien
   })
+
+  const renderMenuItem = (item) => {
+    if (item.type === 'group') {
+      const isActive = item.children.some(child => location.pathname === child.to)
+      return (
+        <div key={item.label}>
+          <Tooltip title={collapsed ? item.label : ''} placement="right">
+            <ListItemButton
+              onClick={handleCommandsMenuToggle}
+              sx={{
+                px: collapsed ? 1.25 : 2,
+                justifyContent: collapsed ? 'center' : 'flex-start',
+                '&.active': {
+                  backgroundColor: 'primary.main',
+                  color: 'primary.contrastText',
+                  '&:hover': {
+                    backgroundColor: 'primary.dark',
+                  }
+                }
+              }}
+            >
+              <ListItemIcon sx={{
+                minWidth: 0,
+                mr: collapsed ? 0 : 2,
+                justifyContent: 'center',
+                color: 'inherit'
+              }}>{item.icon}</ListItemIcon>
+              {!collapsed && <ListItemText primary={item.label} />}
+              {!collapsed && (commandsMenuOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />)}
+            </ListItemButton>
+          </Tooltip>
+
+          {/* Sous-menus visibles même quand réduit */}
+          {collapsed ? (
+            // Mode réduit : afficher les sous-menus directement
+            commandsMenuOpen && (
+              <List component="div" disablePadding>
+                {item.children.map((child) => (
+                  <Tooltip key={child.to} title={child.label} placement="right">
+                    <ListItemButton
+                      component={NavLink}
+                      to={child.to}
+                      sx={{
+                        px: 1.25,
+                        minHeight: 40,
+                        justifyContent: 'center',
+                        '&.active': {
+                          backgroundColor: 'primary.main',
+                          color: 'primary.contrastText',
+                          '&:hover': {
+                            backgroundColor: 'primary.dark',
+                          }
+                        }
+                      }}
+                    >
+                      <ListItemIcon sx={{
+                        minWidth: 0,
+                        justifyContent: 'center',
+                        color: 'inherit'
+                      }}>{child.icon}</ListItemIcon>
+                    </ListItemButton>
+                  </Tooltip>
+                ))}
+              </List>
+            )
+          ) : (
+            // Mode étendu : afficher avec animation
+            <Collapse in={commandsMenuOpen} timeout="auto" unmountOnExit>
+              <List component="div" disablePadding>
+                {item.children.map((child) => (
+                  <Tooltip key={child.to} title={collapsed ? child.label : ''} placement="right">
+                    <ListItemButton
+                      component={NavLink}
+                      to={child.to}
+                      sx={{
+                        pl: 4,
+                        '&.active': {
+                          backgroundColor: 'primary.main',
+                          color: 'primary.contrastText',
+                          '&:hover': {
+                            backgroundColor: 'primary.dark',
+                          }
+                        }
+                      }}
+                    >
+                      <ListItemIcon sx={{
+                        minWidth: 0,
+                        mr: 2,
+                        justifyContent: 'center',
+                        color: 'inherit'
+                      }}>{child.icon}</ListItemIcon>
+                      <ListItemText primary={child.label} />
+                    </ListItemButton>
+                  </Tooltip>
+                ))}
+              </List>
+            </Collapse>
+          )}
+        </div>
+      )
+    } else {
+      return (
+        <Tooltip key={item.to} title={collapsed ? item.label : ''} placement="right">
+          <ListItemButton
+            component={NavLink}
+            to={item.to}
+            sx={{
+              px: collapsed ? 1.25 : 2,
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              '&.active': {
+                backgroundColor: 'primary.main',
+                color: 'primary.contrastText',
+                '&:hover': {
+                  backgroundColor: 'primary.dark',
+                }
+              }
+            }}
+          >
+            <ListItemIcon sx={{
+              minWidth: 0,
+              mr: collapsed ? 0 : 2,
+              justifyContent: 'center',
+              color: 'inherit'
+            }}>{item.icon}</ListItemIcon>
+            {!collapsed && <ListItemText primary={item.label} />}
+          </ListItemButton>
+        </Tooltip>
+      )
+    }
+  }
 
   const drawer = (
     <div>
@@ -87,17 +248,7 @@ export default function DashboardLayout() {
       </Toolbar>
       <Divider />
       <List>
-        {filteredMenu.map((m) => (
-          <Tooltip key={m.to} title={collapsed ? m.label : ''} placement="right">
-            <ListItemButton component={NavLink} to={m.to} sx={({ isActive }) => ({
-              '&.active': { backgroundColor: 'action.selected' },
-              px: collapsed ? 1.25 : 2
-            })}>
-              <ListItemIcon sx={{ minWidth: 0, mr: collapsed ? 0 : 2, justifyContent: 'center' }}>{m.icon}</ListItemIcon>
-              {!collapsed && <ListItemText primary={m.label} />}
-            </ListItemButton>
-          </Tooltip>
-        ))}
+        {filteredMenu.map(renderMenuItem)}
       </List>
     </div>
   )
