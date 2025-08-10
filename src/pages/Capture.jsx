@@ -92,7 +92,10 @@ export default function CapturePage() {
         actions={(
           <Stack direction="row" spacing={1}>
             <Chip label={sessionLabel} />
-            <Button variant="contained" onClick={() => setOpen(true)}>{t('capture.newOrder')}</Button>
+            <Button variant="contained" onClick={() => setOpen(true)}>
+              {t('capture.newOrder')}
+              <span className="keyboard-key">{t('capture.newOrderKey')}</span>
+            </Button>
             <Button variant="outlined" onClick={() => navigate('/sessions')}>{t('capture.changeSession')}</Button>
           </Stack>
         )}
