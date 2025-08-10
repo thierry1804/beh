@@ -93,7 +93,15 @@ export default function SessionsPage() {
                   <td><Chip size="small" label={s.status} color={s.status === 'open' ? 'success' : 'default'} variant={s.status === 'open' ? 'soft' : 'outlined'} /></td>
                   <td>
                     <Stack direction="row" spacing={1}>
-                      <Button size="small" variant="outlined" onClick={() => selectSession(s)}>Utiliser</Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => selectSession(s)}
+                        disabled={selectedSessionId === s.id}
+                        title={selectedSessionId === s.id ? "Session déjà active" : ""}
+                      >
+                        Utiliser
+                      </Button>
                       {s.status === 'open' && (
                         <Button size="small" color="error" variant="outlined" onClick={() => closeSession(s.id)}>Clôturer</Button>
                       )}
