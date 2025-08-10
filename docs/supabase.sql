@@ -36,6 +36,7 @@ create table if not exists public.orders (
   description text not null,
   unit_price numeric(12,2) not null default 0,
   quantity integer not null default 1,
+  status text not null default 'pending' check (status in ('pending', 'completed', 'cancelled')),
   created_at timestamptz not null default now()
 );
 
@@ -101,4 +102,8 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- Migration: Ajouter la colonne status à la table orders
+alter table if exists public.orders 
+add column if not exists status text not null default 'pending' check (status in ('pending', 'completed', 'cancelled'));
 
