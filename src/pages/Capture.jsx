@@ -22,16 +22,21 @@ export default function CapturePage() {
 
   useEffect(() => {
     const onKeyDown = (e) => {
-      if ((e.ctrlKey && e.key.toLowerCase() === 'n') || (!e.ctrlKey && e.key.toLowerCase() === 'n')) {
+      if (!open && ((e.ctrlKey && e.key.toLowerCase() === 'n') || (!e.ctrlKey && e.key.toLowerCase() === 'n'))) {
         e.preventDefault()
         setOpen(true)
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [open])
 
   const sessionLabel = useMemo(() => selectedSessionName || 'Aucune session sélectionnée', [selectedSessionName])
+
+  // Récupérer tous les codes existants dans la session pour la vérification d'unicité
+  const existingCodes = useMemo(() => {
+    return orders.map(order => order.code).filter(Boolean)
+  }, [orders])
 
   async function reload() {
     const [{ data: ordersData }, { data: customersData }] = await Promise.all([
@@ -96,7 +101,13 @@ export default function CapturePage() {
       ) : (
         <>
           <OrderList orders={orders} />
-          <QuickOrderModal open={open} onClose={() => setOpen(false)} onSubmit={handleSubmit} knownHandles={handles} />
+            <QuickOrderModal
+              open={open}
+              onClose={() => setOpen(false)}
+              onSubmit={handleSubmit}
+              knownHandles={handles}
+              existingCodes={existingCodes}
+            />
         </>
       )}
     </div>

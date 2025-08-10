@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-export default function QuickOrderModal({ open, onClose, onSubmit, knownHandles = [] }) {
+export default function QuickOrderModal({ open, onClose, onSubmit, knownHandles = [], existingCodes = [] }) {
   const [tiktokName, setTiktokName] = useState('')
   const [code, setCode] = useState('JP')
   const [description, setDescription] = useState('')
   const [unitPrice, setUnitPrice] = useState('')
   const [quantity, setQuantity] = useState(1)
+  const [codeError, setCodeError] = useState('')
   const inputRef = useRef(null)
 
   useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 0)
+      setCode('JP')
+      setCodeError('')
     }
   }, [open])
 
@@ -25,11 +28,27 @@ export default function QuickOrderModal({ open, onClose, onSubmit, knownHandles 
   const handleSubmit = (e) => {
     e?.preventDefault()
     const parsedPrice = Number(unitPrice)
+
+    // Vérifier l'unicité du code
+    const trimmedCode = code.trim() || 'JP'
+    if (existingCodes.includes(trimmedCode)) {
+      setCodeError('Ce code existe déjà dans cette session')
+      return
+    }
+
     if (!tiktokName.trim() || !description.trim() || Number.isNaN(parsedPrice) || quantity <= 0) return
-    onSubmit?.({ tiktokName: tiktokName.trim(), code: code.trim() || 'JP', description: description.trim(), unitPrice: parsedPrice, quantity })
+
+    onSubmit?.({ tiktokName: tiktokName.trim(), code: trimmedCode, description: description.trim(), unitPrice: parsedPrice, quantity })
     setDescription('')
     setUnitPrice('')
     setQuantity(1)
+    setCode('JP')
+    setCodeError('')
+  }
+
+  const handleCodeChange = (e) => {
+    setCode(e.target.value)
+    setCodeError('') // Effacer l'erreur quand l'utilisateur modifie le code
   }
 
   const datalistId = useMemo(() => 'handles-' + Math.random().toString(36).slice(2), [])
@@ -54,7 +73,15 @@ export default function QuickOrderModal({ open, onClose, onSubmit, knownHandles 
           </div>
           <div className="form-row">
             <label>Code</label>
-            <input className="input" value={code} onChange={(e) => setCode(e.target.value)} />
+            <div>
+              <input
+                className={`input ${codeError ? 'input--error' : ''}`}
+                value={code}
+                onChange={handleCodeChange}
+                placeholder="JP001"
+              />
+              {codeError && <div style={{ color: '#e74c3c', fontSize: '0.875rem', marginTop: '4px' }}>{codeError}</div>}
+            </div>
           </div>
           <div className="form-row">
             <label>Description</label>
