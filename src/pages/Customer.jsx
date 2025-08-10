@@ -12,12 +12,22 @@ export default function CustomerPage() {
 
   async function loadOrCreate() {
     if (!handle) return
-    const { data } = await supabase.from('customers').select('*').ilike('tiktok_name', handle).maybeSingle()
-    if (data) setCustomer(data)
-    else {
-      const { data: created } = await supabase.from('customers').insert([{ tiktok_name: handle }]).select().single()
-      setCustomer(created)
+    // Utiliser upsert pour éviter les conflits de contrainte d'unicité
+    const { data, error } = await supabase
+      .from('customers')
+      .upsert([{ tiktok_name: handle }], {
+        onConflict: 'tiktok_name',
+        ignoreDuplicates: false
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Erreur lors du chargement/création du client:', error)
+      return
     }
+
+    setCustomer(data)
   }
 
   const updateField = useCallback((field, value) => {
@@ -25,8 +35,20 @@ export default function CustomerPage() {
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(async () => {
       setSaving(true)
-      await supabase.from('customers').update({ [field]: value, updated_at: new Date().toISOString() }).ilike('tiktok_name', handle)
-      setSaving(false)
+      try {
+        const { error } = await supabase
+          .from('customers')
+          .update({ [field]: value, updated_at: new Date().toISOString() })
+          .eq('tiktok_name', handle)
+
+        if (error) {
+          console.error('Erreur lors de la mise à jour:', error)
+        }
+      } catch (err) {
+        console.error('Erreur lors de la mise à jour:', err)
+      } finally {
+        setSaving(false)
+      }
     }, 500)
   }, [handle])
 

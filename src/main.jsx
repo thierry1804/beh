@@ -7,6 +7,7 @@ import SessionsPage from './pages/Sessions.jsx'
 import CapturePage from './pages/Capture.jsx'
 import PendingPage from './pages/Pending.jsx'
 import CustomerPage from './pages/Customer.jsx'
+import CustomersPage from './pages/Customers.jsx'
 import LoginPage from './pages/Login.jsx'
 import ProfilePage from './pages/Profile.jsx'
 import { AuthProvider } from './auth/AuthProvider.jsx'
@@ -48,6 +49,11 @@ createRoot(document.getElementById('root')).render(
                 <Route path="/pending" element={
                   <RequireRole adminOnly={false} operatorAllowed={true}>
                     <PendingPage />
+                  </RequireRole>
+                } />
+                <Route path="/customers" element={
+                  <RequireRole adminOnly={true}>
+                    <CustomersPage />
                   </RequireRole>
                 } />
                 <Route path="/customer/:handle" element={

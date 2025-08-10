@@ -37,6 +37,7 @@ function TopNav() {
           {item('/sessions', 'Sessions')}
           {item('/capture', 'Saisie')}
           {item('/pending', 'En attente')}
+          {item('/customers', 'Clients')}
           {item('/prep', 'Préparation')}
           {item('/delivery', 'Livraisons')}
           {item('/dashboard', 'Tableaux de bord')}

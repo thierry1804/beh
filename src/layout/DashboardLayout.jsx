@@ -7,6 +7,7 @@ import DarkModeIcon from '@mui/icons-material/DarkMode'
 import InsightsIcon from '@mui/icons-material/Insights'
 import ListAltIcon from '@mui/icons-material/ListAlt'
 import AddShoppingCartIcon from '@mui/icons-material/AddShoppingCart'
+import ShoppingCartCheckoutIcon from '@mui/icons-material/ShoppingCartCheckout';
 import PeopleIcon from '@mui/icons-material/People'
 import InventoryIcon from '@mui/icons-material/Inventory'
 import LocalShippingIcon from '@mui/icons-material/LocalShipping'
@@ -61,7 +62,8 @@ export default function DashboardLayout() {
     { to: '/dashboard', label: 'Tableaux de bord', icon: <InsightsIcon />, adminOnly: true },
     { to: '/sessions', label: 'Sessions', icon: <ListAltIcon />, adminOnly: true },
     { to: '/capture', label: 'Saisie', icon: <AddShoppingCartIcon />, adminOnly: false },
-    { to: '/pending', label: 'En attente', icon: <PeopleIcon />, adminOnly: false },
+    { to: '/pending', label: 'En attente', icon: <ShoppingCartCheckoutIcon />, adminOnly: false },
+    { to: '/customers', label: 'Clients', icon: <PeopleIcon />, adminOnly: true },
     { to: '/prep', label: 'Préparation', icon: <InventoryIcon />, adminOnly: false },
     { to: '/delivery', label: 'Livraisons', icon: <LocalShippingIcon />, adminOnly: true },
   ]
@@ -188,6 +190,7 @@ function getPageTitle(pathname) {
   if (pathname.startsWith('/sessions')) return 'Sessions Live TikTok';
   if (pathname.startsWith('/capture')) return 'Saisie';
   if (pathname.startsWith('/pending')) return 'En attente de livraison';
+  if (pathname.startsWith('/customers')) return 'Gestion des clients';
   if (pathname.startsWith('/prep')) return 'Préparation';
   if (pathname.startsWith('/delivery')) return 'Livraisons';
   if (pathname.startsWith('/dashboard')) return 'Tableaux de bord';
