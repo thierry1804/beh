@@ -4,6 +4,7 @@ import { useLocalStorage } from '../lib/useLocalStorage'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import { Button, Card, CardContent, TextField } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 
 export default function PendingPage() {
   const [selectedSessionId] = useLocalStorage('selectedSessionId', null)
@@ -11,6 +12,7 @@ export default function PendingPage() {
   const [query, setQuery] = useState('')
   const [rows, setRows] = useState([])
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   useEffect(() => { void reload() }, [])
 
@@ -30,8 +32,8 @@ export default function PendingPage() {
       .order('created_at', { ascending: false })
       .limit(2000)
 
-    console.log('Données récupérées:', data)
-    console.log('Erreur:', error)
+    console.log(t('messages.dataRetrieved') + ':', data)
+    console.log(t('messages.error') + ':', error)
 
     setRows(data || [])
   }
@@ -43,7 +45,7 @@ export default function PendingPage() {
     // D'abord, grouper par client
     for (const r of rows) {
       const customerKey = r.tiktok_name
-      const sessionKey = r.sessions?.name || 'Session inconnue'
+      const sessionKey = r.sessions?.name || t('pending.unknownSession')
 
       // Grouper par client
       const customerPrev = customerMap.get(customerKey) || {
@@ -100,19 +102,19 @@ export default function PendingPage() {
   return (
     <div className="page">
       <PageHeader
-        title={`Commandes en attente (${totalAmount.toLocaleString('fr-FR')})`}
-        actions={<TextField size="small" placeholder="Filtrer par session ou client" value={query} onChange={(e) => setQuery(e.target.value)} />}
+        title={`${t('pending.title')} (${totalAmount.toLocaleString('fr-FR')})`}
+        actions={<TextField size="small" placeholder={t('pending.filterPlaceholder')} value={query} onChange={(e) => setQuery(e.target.value)} />}
       />
       <Card>
         <CardContent>
       <table className="table">
         <thead>
           <tr>
-                <th>Session</th>
-            <th>Pseudo</th>
-            <th>Qté</th>
-            <th>Sous-total</th>
-            <th>Actions</th>
+                <th>{t('pending.session')}</th>
+                <th>{t('pending.username')}</th>
+                <th>{t('pending.quantity')}</th>
+                <th>{t('pending.subtotal')}</th>
+                <th>{t('common.actions')}</th>
           </tr>
         </thead>
         <tbody>
@@ -121,7 +123,7 @@ export default function PendingPage() {
                   {/* Ligne de session avec total */}
                   <tr key={`session-${session.session_name}`} style={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
                     <td>{session.session_name}</td>
-                    <td>{session.customers.length} clients</td>
+                    <td>{session.customers.length} {t('pending.customers')}</td>
                     <td style={{ textAlign: 'right' }}>{session.total_qty}</td>
                     <td style={{ textAlign: 'right' }}>{session.subtotal.toLocaleString('fr-FR')}</td>
                     <td></td>
@@ -134,7 +136,7 @@ export default function PendingPage() {
                       <td style={{ textAlign: 'right' }}>{customer.total_qty}</td>
                       <td style={{ textAlign: 'right' }}>{customer.subtotal.toLocaleString('fr-FR')}</td>
                       <td>
-                        <Button size="small" variant="contained" onClick={() => navigate(`/customer/${encodeURIComponent(customer.tiktok_name)}`)}>Check out</Button>
+                        <Button size="small" variant="contained" onClick={() => navigate(`/customer/${encodeURIComponent(customer.tiktok_name)}`)}>{t('pending.checkout')}</Button>
                       </td>
                     </tr>
                   ))}

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import { useTranslation } from 'react-i18next'
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
+  const { t } = useTranslation()
 
   useEffect(() => {
     loadCustomers()
@@ -47,9 +49,9 @@ export default function CustomersPage() {
 
   const getStatusBadge = (customer) => {
     if (customer.deposit_enabled) {
-      return <span className="badge badge--success">Acompte versé</span>
+      return <span className="badge badge--success">{t('customers.depositPaid')}</span>
     }
-    return <span className="badge badge--warning">Sans acompte</span>
+    return <span className="badge badge--warning">{t('customers.noDeposit')}</span>
   }
 
   if (loading) {
@@ -58,7 +60,7 @@ export default function CustomersPage() {
         <div className="card">
           <div className="card__body">
             <div style={{ textAlign: 'center', padding: '2rem' }}>
-              Chargement des clients...
+              {t('customers.loading')}
             </div>
           </div>
         </div>
@@ -70,9 +72,9 @@ export default function CustomersPage() {
     <div className="page">
       <div className="card">
         <div className="card__header">
-          <h2 style={{ margin: 0 }}>Gestion des clients</h2>
+          <h2 style={{ margin: 0 }}>{t('customers.title')}</h2>
           <div style={{ color: '#9aa3b2' }}>
-            {filteredCustomers.length} client{filteredCustomers.length > 1 ? 's' : ''} trouvé{filteredCustomers.length > 1 ? 's' : ''}
+            {filteredCustomers.length} {filteredCustomers.length > 1 ? t('customers.customersFoundPlural') : t('customers.customersFound')}
           </div>
         </div>
         <div className="card__body">
@@ -82,7 +84,7 @@ export default function CustomersPage() {
               <input
                 className="input"
                 type="text"
-                placeholder="Rechercher par nom, pseudo ou téléphone..."
+                placeholder={t('customers.searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -93,12 +95,12 @@ export default function CustomersPage() {
               onChange={(e) => setFilterStatus(e.target.value)}
               style={{ minWidth: 150 }}
             >
-              <option value="all">Tous les clients</option>
-              <option value="with_deposit">Avec acompte</option>
-              <option value="without_deposit">Sans acompte</option>
+              <option value="all">{t('customers.allCustomers')}</option>
+              <option value="with_deposit">{t('customers.withDeposit')}</option>
+              <option value="without_deposit">{t('customers.withoutDeposit')}</option>
             </select>
             <button className="btn btn--primary" onClick={loadCustomers}>
-              Actualiser
+              {t('customers.refresh')}
             </button>
           </div>
 
@@ -107,8 +109,8 @@ export default function CustomersPage() {
             {filteredCustomers.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '2rem', color: '#9aa3b2' }}>
                 {searchTerm || filterStatus !== 'all' 
-                  ? 'Aucun client ne correspond aux critères de recherche'
-                  : 'Aucun client enregistré'
+                  ? t('customers.noCustomersFound')
+                  : t('customers.noCustomers')
                 }
               </div>
             ) : (
@@ -128,35 +130,35 @@ export default function CustomersPage() {
                         
                         {customer.real_name && (
                           <div style={{ marginBottom: 4, color: '#666' }}>
-                            <strong>Nom réel:</strong> {customer.real_name}
+                            <strong>{t('customers.realName')}:</strong> {customer.real_name}
                           </div>
                         )}
                         
                         {customer.phone && (
                           <div style={{ marginBottom: 4, color: '#666' }}>
-                            <strong>Téléphone:</strong> {customer.phone}
+                            <strong>{t('customers.phone')}:</strong> {customer.phone}
                           </div>
                         )}
                         
                         {customer.address && (
                           <div style={{ marginBottom: 4, color: '#666' }}>
-                            <strong>Adresse:</strong> {customer.address}
+                            <strong>{t('customers.address')}:</strong> {customer.address}
                           </div>
                         )}
                         
                         {customer.deposit_enabled && customer.deposit_amount && (
                           <div style={{ color: '#28a745' }}>
-                            <strong>Acompte:</strong> {customer.deposit_amount} FCFA
+                            <strong>{t('customers.deposit')}:</strong> {customer.deposit_amount} FCFA
                           </div>
                         )}
                       </div>
                       
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
                         <Link to={`/customer/${customer.tiktok_name}`} className="btn btn--primary">
-                          Voir/Modifier
+                          {t('customers.viewEdit')}
                         </Link>
                         <div style={{ fontSize: '0.8rem', color: '#9aa3b2' }}>
-                          Créé le {new Date(customer.created_at).toLocaleDateString('fr-FR')}
+                          {t('customers.createdOn')} {new Date(customer.created_at).toLocaleDateString('fr-FR')}
                         </div>
                       </div>
                     </div>

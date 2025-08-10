@@ -3,12 +3,14 @@ import { supabase } from '../lib/supabaseClient'
 import { useLocalStorage } from '../lib/useLocalStorage'
 import { Button, Card, CardContent, Chip, Stack } from '@mui/material'
 import PageHeader from '../components/PageHeader'
+import { useTranslation } from 'react-i18next'
 
 export default function SessionsPage() {
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(false)
   const [selectedSessionId, setSelectedSessionId] = useLocalStorage('selectedSessionId', null)
   const [selectedSessionName, setSelectedSessionName] = useLocalStorage('selectedSessionName', '')
+  const { t } = useTranslation()
 
   const nowIso = useMemo(() => new Date().toISOString(), [])
 
@@ -58,16 +60,16 @@ export default function SessionsPage() {
   return (
     <div className="page">
       <PageHeader
-        title="Sessions de vente"
+        title={t('sessions.title')}
         actions={(
           <form onSubmit={createSession} className="toolbar" style={{ display: 'flex', gap: 8 }}>
             <Button
               variant="contained"
               type="submit"
               disabled={loading || hasOpenSession}
-              title={hasOpenSession ? "Une session est déjà en cours" : ""}
+              title={hasOpenSession ? t('sessions.sessionInProgress') : ""}
             >
-              Créer
+              {t('sessions.create')}
             </Button>
           </form>
         )}
@@ -77,10 +79,10 @@ export default function SessionsPage() {
           <table className="table">
           <thead>
             <tr>
-                <th>Nom</th>
-                <th>Début</th>
-                <th>Statut</th>
-                <th>Actions</th>
+                <th>{t('sessions.name')}</th>
+                <th>{t('sessions.start')}</th>
+                <th>{t('sessions.status')}</th>
+                <th>{t('sessions.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -98,12 +100,12 @@ export default function SessionsPage() {
                         variant="outlined"
                         onClick={() => selectSession(s)}
                         disabled={selectedSessionId === s.id}
-                        title={selectedSessionId === s.id ? "Session déjà active" : ""}
+                        title={selectedSessionId === s.id ? t('sessions.sessionAlreadyActive') : ""}
                       >
-                        Utiliser
+                        {t('sessions.use')}
                       </Button>
                       {s.status === 'open' && (
-                        <Button size="small" color="error" variant="outlined" onClick={() => closeSession(s.id)}>Clôturer</Button>
+                        <Button size="small" color="error" variant="outlined" onClick={() => closeSession(s.id)}>{t('sessions.close')}</Button>
                       )}
                     </Stack>
                   </td>

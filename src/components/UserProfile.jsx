@@ -32,6 +32,7 @@ import {
 } from '@mui/icons-material'
 import { useProfile } from '../lib/useProfile'
 import { useAuth } from '../auth/AuthProvider'
+import { useTranslation } from 'react-i18next'
 
 export default function UserProfile() {
   const { user } = useAuth()
@@ -42,6 +43,7 @@ export default function UserProfile() {
   })
   const [updateLoading, setUpdateLoading] = useState(false)
   const [updateError, setUpdateError] = useState(null)
+  const { t } = useTranslation()
 
   const handleEdit = () => {
     // Seuls les admins peuvent modifier les profils
@@ -86,9 +88,9 @@ export default function UserProfile() {
   }
 
   const getRoleLabel = () => {
-    if (isAdmin) return 'Administrateur'
-    if (isOperator) return 'Opérateur'
-    return 'Utilisateur'
+    if (isAdmin) return t('profile.admin')
+    if (isOperator) return t('profile.operator')
+    return t('profile.user')
   }
 
   if (loading) {
@@ -113,7 +115,7 @@ export default function UserProfile() {
       <Card>
         <CardContent>
           <Alert severity="error">
-            Erreur lors du chargement du profil : {error}
+            {t('profile.profileLoadError')} : {error}
           </Alert>
         </CardContent>
       </Card>
@@ -125,7 +127,7 @@ export default function UserProfile() {
       <Card>
         <CardContent>
           <Alert severity="warning">
-            Aucun profil trouvé pour cet utilisateur.
+            {t('profile.noProfileFound')}
           </Alert>
         </CardContent>
       </Card>
@@ -143,7 +145,7 @@ export default function UserProfile() {
               </Avatar>
               <Box>
                 <Typography variant="h6" fontWeight="bold">
-                  {user?.email || 'Utilisateur'}
+                  {user?.email || t('profile.user')}
                 </Typography>
                 <Stack direction="row" alignItems="center" gap={1}>
                   {getRoleIcon()}
@@ -170,7 +172,7 @@ export default function UserProfile() {
               <EmailIcon color="action" />
               <Box>
                 <Typography variant="body2" color="text.secondary">
-                  Email
+                  {t('auth.email')}
                 </Typography>
                 <Typography variant="body1">
                   {user?.email}
@@ -182,7 +184,7 @@ export default function UserProfile() {
               <CalendarIcon color="action" />
               <Box>
                 <Typography variant="body2" color="text.secondary">
-                  Membre depuis
+                  {t('profile.memberSince')}
                 </Typography>
                 <Typography variant="body1">
                   {new Date(profile.created_at).toLocaleDateString('fr-FR', {
@@ -198,7 +200,7 @@ export default function UserProfile() {
               <CalendarIcon color="action" />
               <Box>
                 <Typography variant="body2" color="text.secondary">
-                  Dernière mise à jour
+                  {t('profile.lastUpdate')}
                 </Typography>
                 <Typography variant="body1">
                   {new Date(profile.updated_at).toLocaleDateString('fr-FR', {
@@ -217,7 +219,7 @@ export default function UserProfile() {
 
       {/* Dialog d'édition */}
       <Dialog open={editMode} onClose={handleCancel} maxWidth="sm" fullWidth>
-        <DialogTitle>Modifier le profil</DialogTitle>
+        <DialogTitle>{t('profile.editProfile')}</DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ mt: 1 }}>
             {updateError && (
@@ -227,42 +229,42 @@ export default function UserProfile() {
             )}
 
             <TextField
-              label="Email"
+              label={t('auth.email')}
               value={user?.email || ''}
               disabled
               fullWidth
-              helperText="L'email ne peut pas être modifié"
+              helperText={t('profile.emailCannotBeModified')}
             />
 
                          <FormControl fullWidth>
-               <InputLabel>Rôle</InputLabel>
+              <InputLabel>{t('profile.role')}</InputLabel>
                <Select
                  value={formData.role}
-                 label="Rôle"
+                label={t('profile.role')}
                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                >
-                 <MenuItem value="operator">Opérateur</MenuItem>
-                 <MenuItem value="admin">Administrateur</MenuItem>
+                <MenuItem value="operator">{t('profile.operator')}</MenuItem>
+                <MenuItem value="admin">{t('profile.admin')}</MenuItem>
                </Select>
              </FormControl>
              
              {!isAdmin && (
                <Alert severity="info">
-                 Seuls les administrateurs peuvent modifier les profils.
+                {t('profile.onlyAdminsCanEdit')}
                </Alert>
              )}
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCancel} disabled={updateLoading}>
-            Annuler
+            {t('common.cancel')}
           </Button>
           <Button 
             onClick={handleSave} 
             variant="contained" 
             disabled={updateLoading}
           >
-            {updateLoading ? 'Enregistrement...' : 'Enregistrer'}
+            {updateLoading ? t('profile.saving') : t('common.save')}
           </Button>
         </DialogActions>
       </Dialog>

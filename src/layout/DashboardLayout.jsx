@@ -19,6 +19,7 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart'
+import LanguageSelector from '../components/LanguageSelector'
 
 const EXPANDED_WIDTH = 240
 const COLLAPSED_WIDTH = 72
@@ -28,6 +29,7 @@ import { useLocalStorage } from '../lib/useLocalStorage'
 import { useColorMode } from '../theme/ThemeProviderWithToggle'
 import { useAuth } from '../auth/AuthProvider'
 import { useProfile } from '../lib/useProfile'
+import { useTranslation } from 'react-i18next'
 
 export default function DashboardLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -41,6 +43,7 @@ export default function DashboardLayout() {
   const { isAdmin, isOperator } = useProfile()
   const navigate = useNavigate()
   const location = useLocation()
+  const { t } = useTranslation()
 
   // Ouvrir automatiquement le menu Commandes si un sous-menu est actif
   useEffect(() => {
@@ -72,24 +75,24 @@ export default function DashboardLayout() {
     setCommandsMenuOpen(!commandsMenuOpen)
   }
 
-  const title = getPageTitle(location.pathname)
+  const title = getPageTitle(location.pathname, t)
 
   const menu = [
-    { to: '/dashboard', label: 'Tableaux de bord', icon: <InsightsIcon />, adminOnly: true },
-    { to: '/sessions', label: 'Sessions', icon: <ListAltIcon />, adminOnly: true },
+    { to: '/dashboard', label: t('navigation.dashboard'), icon: <InsightsIcon />, adminOnly: true },
+    { to: '/sessions', label: t('navigation.sessions'), icon: <ListAltIcon />, adminOnly: true },
     {
       type: 'group',
-      label: 'Commandes',
+      label: t('navigation.commands'),
       icon: <ShoppingCartIcon />,
       adminOnly: false,
       children: [
-        { to: '/capture', label: 'Saisie', icon: <AddShoppingCartIcon />, adminOnly: false },
-        { to: '/pending', label: 'En attente', icon: <ShoppingCartCheckoutIcon />, adminOnly: false },
+        { to: '/capture', label: t('navigation.capture'), icon: <AddShoppingCartIcon />, adminOnly: false },
+        { to: '/pending', label: t('navigation.pending'), icon: <ShoppingCartCheckoutIcon />, adminOnly: false },
       ]
     },
-    { to: '/customers', label: 'Clients', icon: <PeopleIcon />, adminOnly: true },
-    { to: '/prep', label: 'Préparation', icon: <InventoryIcon />, adminOnly: false },
-    { to: '/delivery', label: 'Livraisons', icon: <LocalShippingIcon />, adminOnly: true },
+    { to: '/customers', label: t('navigation.customers'), icon: <PeopleIcon />, adminOnly: true },
+    { to: '/prep', label: t('navigation.prep'), icon: <InventoryIcon />, adminOnly: false },
+    { to: '/delivery', label: t('navigation.delivery'), icon: <LocalShippingIcon />, adminOnly: true },
   ]
 
   // Filtrer le menu selon les permissions
@@ -263,6 +266,7 @@ export default function DashboardLayout() {
           </IconButton>
           <Typography variant="h6" noWrap sx={{ mr: 'auto', textAlign: 'left' }}>{title}</Typography>
           <Stack direction="row" alignItems="center" spacing={1}>
+            <LanguageSelector />
             <Tooltip title={mode === 'light' ? 'Basculer en sombre' : 'Basculer en clair'}>
               <IconButton color="primary" onClick={toggleMode}>
                 {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
@@ -299,11 +303,11 @@ export default function DashboardLayout() {
                 >
                   <MenuItem onClick={handleProfileClick}>
                     <PersonIcon sx={{ mr: 1 }} />
-                    Mon Profil
+                    {t('profile.title')}
                   </MenuItem>
                   <MenuItem onClick={onLogout}>
                     <LogoutIcon sx={{ mr: 1 }} />
-                    Se déconnecter
+                    {t('auth.logout')}
                   </MenuItem>
                 </Menu>
               </>
@@ -336,17 +340,17 @@ export default function DashboardLayout() {
   )
 }
 
-function getPageTitle(pathname) {
-  if (pathname === '/' || pathname === '') return 'Tableaux de bord';
-  if (pathname.startsWith('/sessions')) return 'Sessions Live TikTok';
-  if (pathname.startsWith('/capture')) return 'Saisie';
-  if (pathname.startsWith('/pending')) return 'En attente de livraison';
-  if (pathname.startsWith('/customers')) return 'Gestion des clients';
-  if (pathname.startsWith('/prep')) return 'Préparation';
-  if (pathname.startsWith('/delivery')) return 'Livraisons';
-  if (pathname.startsWith('/dashboard')) return 'Tableaux de bord';
-  if (pathname.startsWith('/customer')) return 'Client';
-  if (pathname.startsWith('/profile')) return 'Mon Profil';
+function getPageTitle(pathname, t) {
+  if (pathname === '/' || pathname === '') return t('dashboard.title');
+  if (pathname.startsWith('/sessions')) return t('sessions.title');
+  if (pathname.startsWith('/capture')) return t('capture.title');
+  if (pathname.startsWith('/pending')) return t('pending.title');
+  if (pathname.startsWith('/customers')) return t('customers.title');
+  if (pathname.startsWith('/prep')) return t('navigation.prep');
+  if (pathname.startsWith('/delivery')) return t('navigation.delivery');
+  if (pathname.startsWith('/dashboard')) return t('dashboard.title');
+  if (pathname.startsWith('/customer')) return t('customers.title');
+  if (pathname.startsWith('/profile')) return t('profile.title');
   return 'BEHX';
 }
 

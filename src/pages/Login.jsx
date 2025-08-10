@@ -15,6 +15,7 @@ import MailOutlineIcon from '@mui/icons-material/MailOutline'
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
 import LoginIcon from '@mui/icons-material/Login'
 import { supabase } from '../lib/supabaseClient'
+import { useTranslation } from 'react-i18next'
 
 export default function LoginPage() {
   const { signInWithPassword, signInWithOtp } = useAuth()
@@ -26,6 +27,7 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const from = (location.state && location.state.from) || '/capture'
+  const { t } = useTranslation()
 
   async function onSubmit(e) {
     e.preventDefault()
@@ -43,7 +45,7 @@ export default function LoginPage() {
   async function onForgotPassword() {
     if (!email) {
       setMessageType('info')
-      setMessage('Veuillez saisir votre email pour recevoir le lien de réinitialisation.')
+      setMessage(t('auth.forgotPasswordMessage'))
       return
     }
     setLoading(true)
@@ -57,7 +59,7 @@ export default function LoginPage() {
       setMessage(error.message)
     } else {
       setMessageType('success')
-      setMessage('Si un compte existe pour cet email, un lien de réinitialisation a été envoyé.')
+      setMessage(t('auth.resetPasswordSent'))
     }
   }
 
@@ -67,11 +69,11 @@ export default function LoginPage() {
         <Stack spacing={2}>
           <Stack spacing={0.5} alignItems="center">
             <LockOutlinedIcon color="primary" />
-            <Typography variant="h5" fontWeight={700}>Connexion</Typography>
+            <Typography variant="h5" fontWeight={700}>{t('auth.login')}</Typography>
           </Stack>
 
           <TextField
-            label="Email"
+            label={t('auth.email')}
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -82,7 +84,7 @@ export default function LoginPage() {
           />
 
           <TextField
-            label="Mot de passe"
+            label={t('auth.password')}
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -93,7 +95,7 @@ export default function LoginPage() {
           />
 
           <Box sx={{ textAlign: 'right' }}>
-            <Button onClick={onForgotPassword} size="small">Mot de passe oublié ?</Button>
+            <Button onClick={onForgotPassword} size="small">{t('auth.forgotPassword')}</Button>
           </Box>
 
           {message && (
@@ -108,7 +110,7 @@ export default function LoginPage() {
             startIcon={<LoginIcon />}
             fullWidth
           >
-            {loading ? '...' : 'Se connecter'}
+            {loading ? '...' : t('auth.loginButton')}
           </Button>
         </Stack>
       </Paper>

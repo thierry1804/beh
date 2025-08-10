@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, Grid, Typography } from '@mui/material'
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { useTranslation } from 'react-i18next'
 
 const data = [
   { name: 'Jan', Investment: 40, Loss: 12, Profit: 30, Maintenance: 9 },
@@ -11,11 +12,12 @@ const data = [
 ]
 
 export default function Dashboard() {
+  const { t } = useTranslation()
   return (
     <Grid container spacing={2}>
       <Grid item xs={12} md={8}>
         <Card>
-          <CardHeader title={<Typography variant="h6">Total Growth</Typography>} subheader="$2,324.00" />
+          <CardHeader title={<Typography variant="h6">{t('dashboard.title')}</Typography>} subheader="$2,324.00" />
           <CardContent style={{ height: 360 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data}>
@@ -35,9 +37,9 @@ export default function Dashboard() {
       </Grid>
       <Grid item xs={12} md={4}>
         <Card>
-          <CardHeader title={<Typography variant="h6">Popular Stocks</Typography>} />
+          <CardHeader title={<Typography variant="h6">{t('dashboard.recentOrders')}</Typography>} />
           <CardContent>
-            <Typography variant="body2" color="text.secondary">Widget placeholder</Typography>
+            <Typography variant="body2" color="text.secondary">{t('common.loading')}</Typography>
           </CardContent>
         </Card>
       </Grid>

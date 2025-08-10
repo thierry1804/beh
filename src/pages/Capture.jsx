@@ -6,6 +6,7 @@ import { useLocalStorage } from '../lib/useLocalStorage'
 import { useNavigate } from 'react-router-dom'
 import { Button, Card, CardContent, Stack, Chip } from '@mui/material'
 import PageHeader from '../components/PageHeader'
+import { useTranslation } from 'react-i18next'
 
 export default function CapturePage() {
   const [selectedSessionId] = useLocalStorage('selectedSessionId', null)
@@ -14,6 +15,7 @@ export default function CapturePage() {
   const [handles, setHandles] = useState([])
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   useEffect(() => {
     if (!selectedSessionId) return
@@ -31,7 +33,7 @@ export default function CapturePage() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [open])
 
-  const sessionLabel = useMemo(() => selectedSessionName || 'Aucune session sélectionnée', [selectedSessionName])
+  const sessionLabel = useMemo(() => selectedSessionName || t('capture.noSessionSelected'), [selectedSessionName, t])
 
   // Récupérer tous les codes existants dans la session pour la vérification d'unicité
   const existingCodes = useMemo(() => {
@@ -70,7 +72,7 @@ export default function CapturePage() {
       .maybeSingle()
 
     if (existing) {
-      const merge = window.confirm('Ligne similaire trouvée. Fusionner (incrémenter la quantité) ?')
+      const merge = window.confirm(t('capture.mergeConfirmation'))
       if (merge) {
         await supabase.from('orders').update({ quantity: (existing.quantity || 0) + line.quantity }).eq('id', existing.id)
       } else {
@@ -86,18 +88,18 @@ export default function CapturePage() {
   return (
     <div className="page">
       <PageHeader
-        title="Saisie opérateur"
+        title={t('capture.operatorTitle')}
         actions={(
           <Stack direction="row" spacing={1}>
             <Chip label={sessionLabel} />
-            <Button variant="contained" onClick={() => setOpen(true)}>Nouvelle commande (N / Ctrl+N)</Button>
-            <Button variant="outlined" onClick={() => navigate('/sessions')}>Changer de session</Button>
+            <Button variant="contained" onClick={() => setOpen(true)}>{t('capture.newOrder')}</Button>
+            <Button variant="outlined" onClick={() => navigate('/sessions')}>{t('capture.changeSession')}</Button>
           </Stack>
         )}
       />
 
       {!selectedSessionId ? (
-        <Card><CardContent>Sélectionnez d'abord une session dans l'écran « Sessions ».</CardContent></Card>
+        <Card><CardContent>{t('capture.selectSessionFirst')}</CardContent></Card>
       ) : (
         <>
           <OrderList orders={orders} />
