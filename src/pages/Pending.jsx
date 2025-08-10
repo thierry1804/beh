@@ -134,7 +134,7 @@ export default function PendingPage() {
                       <td style={{ textAlign: 'right' }}>{customer.total_qty}</td>
                       <td style={{ textAlign: 'right' }}>{customer.subtotal.toLocaleString('fr-FR')}</td>
                       <td>
-                        <Button size="small" variant="contained" onClick={() => navigate(`/customer/${encodeURIComponent(customer.tiktok_name)}`)}>Finaliser</Button>
+                        <Button size="small" variant="contained" onClick={() => navigate(`/customer/${encodeURIComponent(customer.tiktok_name)}`)}>Check out</Button>
                       </td>
                     </tr>
                   ))}
