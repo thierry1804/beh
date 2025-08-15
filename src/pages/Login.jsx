@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useProfile } from '../lib/useProfile'
 import {
   Alert,
   Box,
@@ -18,7 +19,8 @@ import { supabase } from '../lib/supabaseClient'
 import { useTranslation } from 'react-i18next'
 
 export default function LoginPage() {
-  const { signInWithPassword, signInWithOtp } = useAuth()
+  const { signInWithPassword, signInWithOtp, user } = useAuth()
+  const { loading: profileLoading } = useProfile()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -26,8 +28,15 @@ export default function LoginPage() {
   const [messageType, setMessageType] = useState('info')
   const navigate = useNavigate()
   const location = useLocation()
-  const from = (location.state && location.state.from) || '/capture'
   const { t } = useTranslation()
+
+  // Redirection automatique après connexion
+  useEffect(() => {
+    if (user && !profileLoading) {
+      // Toujours rediriger vers la racine pour que HomeRedirect gère la redirection selon le rôle
+      navigate('/', { replace: true })
+    }
+  }, [user, profileLoading, navigate])
 
   async function onSubmit(e) {
     e.preventDefault()
@@ -35,8 +44,11 @@ export default function LoginPage() {
     setMessage('')
     try {
       const { error } = await signInWithPassword(email, password)
-      if (error) { setMessageType('error'); setMessage(error.message) }
-      else navigate(from, { replace: true })
+      if (error) {
+        setMessageType('error');
+        setMessage(error.message)
+      }
+      // La redirection sera gérée par le useEffect ci-dessus
     } finally {
       setLoading(false)
     }

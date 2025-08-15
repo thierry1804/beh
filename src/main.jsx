@@ -17,6 +17,7 @@ import RequireRole from './auth/RequireRole.jsx'
 import ThemeProviderWithToggle from './theme/ThemeProviderWithToggle.jsx'
 import DashboardLayout from './layout/DashboardLayout.jsx'
 import Dashboard from './pages/Dashboard.jsx'
+import HomeRedirect from './components/HomeRedirect.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -27,13 +28,9 @@ createRoot(document.getElementById('root')).render(
             <Route path="/login" element={<LoginPage />} />
             <Route element={<RequireAuth />}>
               <Route element={<DashboardLayout />}>
-                <Route index element={
-                  <RequireRole adminOnly={true} fallbackPath="/capture">
-                    <Dashboard />
-                  </RequireRole>
-                } />
+                <Route index element={<HomeRedirect />} />
                 <Route path="/dashboard" element={
-                  <RequireRole adminOnly={true}>
+                  <RequireRole adminOnly={true} fallbackPath="/capture">
                     <Dashboard />
                   </RequireRole>
                 } />

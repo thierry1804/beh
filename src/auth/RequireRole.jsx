@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useProfile } from '../lib/useProfile'
 import { useAuth } from './AuthProvider'
 import { Container, Typography, Paper, Box } from '@mui/material'
@@ -11,6 +11,7 @@ export default function RequireRole({
 }) {
   const { user } = useAuth()
   const { profile, loading, isAdmin, isOperator } = useProfile()
+  const location = useLocation()
 
   // Rediriger si l'utilisateur n'est pas connecté
   if (!user) {
@@ -50,9 +51,11 @@ export default function RequireRole({
     hasAccess = false
   }
 
+
+
   if (!hasAccess) {
     // Si c'est la page d'accueil et qu'on a un fallbackPath, rediriger automatiquement
-    if (window.location.pathname === '/' && fallbackPath) {
+    if (location.pathname === '/' && fallbackPath) {
       return <Navigate to={fallbackPath} replace />
     }
     
