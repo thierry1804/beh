@@ -55,7 +55,7 @@ createRoot(document.getElementById('root')).render(
                   </RequireRole>
                 } />
                 <Route path="/customer/:handle" element={
-                  <RequireRole adminOnly={true}>
+                  <RequireRole adminOnly={false} operatorAllowed={true}>
                     <CustomerPage />
                   </RequireRole>
                 } />
