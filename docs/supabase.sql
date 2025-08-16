@@ -107,3 +107,27 @@ create trigger on_auth_user_created
 alter table if exists public.orders 
 add column if not exists status text not null default 'pending' check (status in ('pending', 'completed', 'cancelled'));
 
+-- Migration: Ajouter la colonne delivery_date à la table customers
+alter table if exists public.customers 
+add column if not exists delivery_date date;
+
+-- Migration: Ajouter les nouvelles colonnes pour le checkout
+alter table if exists public.customers 
+add column if not exists is_province boolean not null default false;
+
+alter table if exists public.customers 
+add column if not exists transport text;
+
+alter table if exists public.customers 
+add column if not exists payment_reference text;
+
+alter table if exists public.customers 
+add column if not exists fully_paid boolean not null default false;
+
+-- Migration: Ajouter les champs mode de livraison et statut de commande
+alter table if exists public.customers 
+add column if not exists delivery_mode text check (delivery_mode in ('RECUPERATION', 'VIA SERVICE DE LIVRAISON'));
+
+alter table if exists public.customers 
+add column if not exists order_status text not null default 'CHECKOUT EN COURS' check (order_status in ('CREEE', 'CHECKOUT EN COURS', 'CONFIRMEE'));
+

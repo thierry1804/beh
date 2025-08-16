@@ -53,10 +53,15 @@ export default function PendingPage() {
         session_name: sessionKey,
         session_start: r.sessions?.start_at,
         total_qty: 0,
-        subtotal: 0
+        subtotal: 0,
+        firstOrderId: r.id  // Ajouter l'ID de la première commande
       }
       customerPrev.total_qty += Number(r.quantity || 0)
       customerPrev.subtotal += Number(r.unit_price || 0) * Number(r.quantity || 0)
+      // Garder la première commande comme référence pour le checkout
+      if (!customerPrev.firstOrderId) {
+        customerPrev.firstOrderId = r.id
+      }
       customerMap.set(customerKey, customerPrev)
 
       // Calculer les totaux par session
@@ -136,7 +141,7 @@ export default function PendingPage() {
                       <td style={{ textAlign: 'right' }}>{customer.total_qty}</td>
                       <td style={{ textAlign: 'right' }}>{customer.subtotal.toLocaleString('fr-FR')}</td>
                       <td>
-                        <Button size="small" variant="contained" onClick={() => navigate(`/customer/${encodeURIComponent(customer.tiktok_name)}`)}>{t('pending.checkout')}</Button>
+                        <Button size="small" variant="contained" onClick={() => navigate(`/checkout/${customer.firstOrderId}`)}>{t('pending.checkout')}</Button>
                       </td>
                     </tr>
                   ))}

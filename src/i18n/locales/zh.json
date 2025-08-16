@@ -55,6 +55,49 @@
     "checkout": "结账",
     "unknownSession": "未知会话"
   },
+  "checkout": {
+    "title": "结账",
+    "customerInfo": "客户信息",
+    "customerName": "客户姓名",
+    "phone": "电话号码",
+    "deliveryAddress": "配送地址",
+    "deliveryDate": "配送日期",
+    "paymentMethod": "付款方式",
+    "orders": "订单",
+    "noOrders": "该客户没有待处理订单。",
+    "subtotal": "小计",
+    "finalizeCheckout": "完成结账",
+    "saving": "保存中...",
+    "province": "省份",
+    "transport": "运输",
+    "deposit": "定金",
+    "paymentReference": "付款参考",
+    "paid": "已付款",
+    "depositExceedsTotal": "定金不能超过总额",
+    "depositOptionalCash": "现金付款定金可选",
+    "depositRequired": "此付款方式需要定金",
+    "required": "必填字段",
+    "steps": {
+      "personalInfo": "个人信息",
+      "deliveryPayment": "配送与付款",
+      "deposit": "定金",
+      "complete": "完成"
+    },
+    "tableHeaders": {
+      "code": "代码",
+      "description": "描述",
+      "unitPrice": "单价",
+      "quantity": "数量",
+      "subtotal": "小计",
+      "session": "会话"
+    },
+    "paymentMethods": {
+      "especes": "现金",
+      "mvola": "MVola",
+      "orange_money": "Orange Money",
+      "airtel_money": "Airtel Money"
+    }
+  },
   "sessions": {
     "title": "销售会话",
     "newSession": "新会话",

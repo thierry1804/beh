@@ -1,0 +1,268 @@
+/* CSS moderne pour la page checkout */
+
+/* Animation pour le chargement */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animation pour les cartes */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Styles globaux pour la page checkout */
+.checkout-page {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* Amélioration des transitions pour les champs de saisie */
+.checkout-field {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.checkout-field:focus-within {
+  transform: translateY(-1px);
+}
+
+/* Styles pour les cartes de commandes */
+.order-card {
+  animation: slideInUp 0.4s ease-out;
+  animation-fill-mode: both;
+}
+
+.order-card:nth-child(1) { animation-delay: 0.1s; }
+.order-card:nth-child(2) { animation-delay: 0.2s; }
+.order-card:nth-child(3) { animation-delay: 0.3s; }
+.order-card:nth-child(4) { animation-delay: 0.4s; }
+.order-card:nth-child(5) { animation-delay: 0.5s; }
+
+/* Amélioration du scroll */
+.checkout-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(102, 126, 234, 0.3) transparent;
+}
+
+.checkout-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.checkout-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.checkout-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(102, 126, 234, 0.3);
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+.checkout-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(102, 126, 234, 0.5);
+}
+
+/* Responsive design amélioré */
+@media (min-width: 1400px) {
+  /* Très grands écrans - optimiser l'utilisation de l'espace */
+  .checkout-wide-layout {
+    max-width: none !important;
+    padding: 24px 48px !important;
+  }
+  
+  .checkout-grid-wide {
+    gap: 32px !important;
+  }
+}
+
+@media (max-width: 1200px) {
+  .checkout-container {
+    padding: 16px;
+  }
+}
+
+/* Tablet et écrans moyens - garder les colonnes côte à côte */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .checkout-grid {
+    gap: 20px !important;
+  }
+  
+  /* Ajuster les proportions pour les tablettes */
+  .checkout-left-panel {
+    min-height: fit-content;
+  }
+  
+  .checkout-right-panel {
+    min-height: fit-content;
+  }
+}
+
+/* Mobile - empilement vertical */
+@media (max-width: 767px) {
+  .checkout-container {
+    padding: 12px;
+  }
+  
+  /* Réduire l'espacement sur mobile */
+  .checkout-grid {
+    gap: 16px !important;
+  }
+  
+  /* Ajuster la taille des avatars */
+  .checkout-avatar {
+    width: 40px !important;
+    height: 40px !important;
+    font-size: 1rem !important;
+  }
+  
+  /* Ajuster la taille des titres */
+  .checkout-title {
+    font-size: 1.75rem !important;
+  }
+  
+  /* Améliorer l'affichage des étapes sur mobile */
+  .checkout-stepper .MuiStepLabel-label {
+    display: none;
+  }
+  
+  .checkout-stepper .MuiStepLabel-iconContainer {
+    padding-right: 0 !important;
+  }
+  
+  /* Tableau responsive sur mobile */
+  .checkout-table-container {
+    overflow-x: auto;
+  }
+  
+  .checkout-table {
+    min-width: 600px;
+  }
+  
+  .checkout-table .MuiTableCell-root {
+    padding: 8px 4px !important;
+    font-size: 0.8rem !important;
+  }
+  
+  .checkout-table .MuiChip-root {
+    font-size: 0.7rem !important;
+    height: 20px !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .checkout-container {
+    padding: 8px;
+  }
+  
+  /* Stack les cartes verticalement sur très petit écran */
+  .checkout-cards {
+    flex-direction: column;
+  }
+  
+  /* Réduire la hauteur du bouton principal */
+  .checkout-button {
+    height: 48px !important;
+    font-size: 1rem !important;
+  }
+  
+  /* Optimiser l'affichage des cartes de commande */
+  .order-card-content {
+    padding: 16px !important;
+  }
+  
+  .order-card-details {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 8px;
+  }
+  
+  .order-card-price {
+    align-self: flex-end;
+  }
+}
+
+/* Effets visuels modernes */
+.gradient-bg {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.glass-effect {
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.shadow-modern {
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.shadow-modern:hover {
+  box-shadow: 
+    0 4px 6px rgba(0, 0, 0, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+/* Amélioration de l'accessibilité */
+.focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+/* Animations d'état */
+.loading-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Optimisations pour les écrans haute résolution */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .checkout-icons {
+    image-rendering: -webkit-optimize-contrast;
+  }
+}
+
+/* Mode sombre (si nécessaire) */
+@media (prefers-color-scheme: dark) {
+  .checkout-page {
+    background-color: #1a202c;
+  }
+  
+  .checkout-card {
+    background-color: #2d3748;
+    border-color: #4a5568;
+  }
+}
+
+/* Amélioration des performances */
+.checkout-page * {
+  box-sizing: border-box;
+}
+
+.gpu-accelerated {
+  transform: translateZ(0);
+  will-change: transform;
+}

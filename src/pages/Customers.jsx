@@ -17,17 +17,36 @@ export default function CustomersPage() {
   async function loadCustomers() {
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      // Charger les clients avec leurs commandes en attente
+      const { data: customersData, error: customersError } = await supabase
         .from('customers')
         .select('*')
         .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error('Erreur lors du chargement des clients:', error)
+      if (customersError) {
+        console.error('Erreur lors du chargement des clients:', customersError)
         return
       }
 
-      setCustomers(data || [])
+      // Pour chaque client, récupérer la première commande en attente
+      const customersWithOrders = await Promise.all(
+        (customersData || []).map(async (customer) => {
+          const { data: ordersData } = await supabase
+            .from('orders')
+            .select('id')
+            .eq('tiktok_name', customer.tiktok_name)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false })
+            .limit(1)
+
+          return {
+            ...customer,
+            firstOrderId: ordersData?.[0]?.id || null
+          }
+        })
+      )
+
+      setCustomers(customersWithOrders)
     } catch (err) {
       console.error('Erreur lors du chargement des clients:', err)
     } finally {
@@ -121,7 +140,14 @@ export default function CustomersPage() {
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                           <h3 style={{ margin: 0, fontSize: '1.1rem' }}>
-                            <Link to={`/customer/${customer.tiktok_name}`} style={{ color: 'var(--primary)', textDecoration: 'none' }}>
+                            <Link
+                              to={customer.firstOrderId ? `/checkout/${customer.firstOrderId}` : '#'}
+                              style={{
+                                color: customer.firstOrderId ? 'var(--primary)' : '#999',
+                                textDecoration: 'none',
+                                cursor: customer.firstOrderId ? 'pointer' : 'not-allowed'
+                              }}
+                            >
                               @{customer.tiktok_name}
                             </Link>
                           </h3>
@@ -154,9 +180,15 @@ export default function CustomersPage() {
                       </div>
                       
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
-                        <Link to={`/customer/${customer.tiktok_name}`} className="btn btn--primary">
-                          {t('customers.viewEdit')}
-                        </Link>
+                        {customer.firstOrderId ? (
+                          <Link to={`/checkout/${customer.firstOrderId}`} className="btn btn--primary">
+                            {t('customers.viewEdit')}
+                          </Link>
+                        ) : (
+                          <span className="btn btn--secondary" style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                            Aucune commande
+                          </span>
+                        )}
                         <div style={{ fontSize: '0.8rem', color: '#9aa3b2' }}>
                           {t('customers.createdOn')} {new Date(customer.created_at).toLocaleDateString('fr-FR')}
                         </div>

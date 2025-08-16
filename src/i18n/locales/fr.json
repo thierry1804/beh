@@ -55,6 +55,49 @@
     "checkout": "Check out",
     "unknownSession": "Session inconnue"
   },
+  "checkout": {
+    "title": "Checkout",
+    "customerInfo": "Informations client",
+    "customerName": "Nom du client",
+    "phone": "Numéro de téléphone",
+    "deliveryAddress": "Adresse de livraison",
+    "deliveryDate": "Date de livraison",
+    "paymentMethod": "Mode de paiement",
+    "orders": "Commandes",
+    "noOrders": "Aucune commande en attente pour ce client.",
+    "subtotal": "Sous-total",
+    "finalizeCheckout": "Finaliser le checkout",
+    "saving": "Enregistrement...",
+    "province": "Province",
+    "transport": "Transport",
+    "deposit": "Acompte",
+    "paymentReference": "Référence de paiement",
+    "paid": "Payé",
+    "depositExceedsTotal": "L'acompte ne peut pas dépasser le total",
+    "depositOptionalCash": "Acompte optionnel pour les paiements en espèces",
+    "depositRequired": "Acompte requis pour ce mode de paiement",
+    "required": "Champ obligatoire",
+    "steps": {
+      "personalInfo": "Infos personnelles",
+      "deliveryPayment": "Livraison & Paiement",
+      "deposit": "Acompte",
+      "complete": "Complet"
+    },
+    "tableHeaders": {
+      "code": "Code",
+      "description": "Description",
+      "unitPrice": "Prix unit.",
+      "quantity": "Qté",
+      "subtotal": "Sous-total",
+      "session": "Session"
+    },
+    "paymentMethods": {
+      "especes": "Espèces",
+      "mvola": "MVola",
+      "orange_money": "Orange Money",
+      "airtel_money": "Airtel Money"
+    }
+  },
   "sessions": {
     "title": "Sessions de vente",
     "newSession": "Nouvelle session",

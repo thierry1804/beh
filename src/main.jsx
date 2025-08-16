@@ -8,6 +8,7 @@ import SessionsPage from './pages/Sessions.jsx'
 import CapturePage from './pages/Capture.jsx'
 import PendingPage from './pages/Pending.jsx'
 import CustomerPage from './pages/Customer.jsx'
+import CheckoutPage from './pages/Checkout.jsx'
 import CustomersPage from './pages/Customers.jsx'
 import LoginPage from './pages/Login.jsx'
 import ProfilePage from './pages/Profile.jsx'
@@ -54,9 +55,9 @@ createRoot(document.getElementById('root')).render(
                     <CustomersPage />
                   </RequireRole>
                 } />
-                <Route path="/customer/:handle" element={
+                <Route path="/checkout/:orderId" element={
                   <RequireRole adminOnly={false} operatorAllowed={true}>
-                    <CustomerPage />
+                    <CheckoutPage />
                   </RequireRole>
                 } />
                 <Route path="/profile" element={
