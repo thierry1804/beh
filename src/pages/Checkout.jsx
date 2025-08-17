@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useTranslation } from 'react-i18next'
 import './Checkout.css'
@@ -40,139 +40,206 @@ import {
   RadioGroup,
   Radio
 } from '@mui/material'
+import { loadOrderWithDetails, updateOrderStatus, calculateOrderTotal } from '../lib/orderUtils'
+import { loadCustomerWithContacts, updateCustomer, getOrCreateCustomerPhone, getOrCreateCustomerAddress } from '../lib/customerUtils'
 
 export default function CheckoutPage() {
   const { orderId } = useParams()
   const { t } = useTranslation()
   const theme = useTheme()
+  const navigate = useNavigate()
   const isMdUp = useMediaQuery(theme.breakpoints.up('md'))
+  const [order, setOrder] = useState(null)
   const [customer, setCustomer] = useState(null)
-  const [orders, setOrders] = useState([])
   const [saving, setSaving] = useState(false)
   const saveTimer = useRef(null)
 
+  // Vérifier si la commande est en mode lecture seule (déjà confirmée)
+  const isReadOnly = order?.order_status === 'CONFIRMEE'
+
   useEffect(() => { 
-    void loadCustomerAndOrders() 
+    void loadOrderAndCustomer() 
   }, [orderId])
 
-  async function loadCustomerAndOrders() {
+  async function loadOrderAndCustomer() {
     if (!orderId) return
     
-    // Charger la commande spécifique et les informations du client
-    const { data: orderData, error: orderError } = await supabase
-      .from('orders')
-      .select(`
-        id, 
-        tiktok_name, 
-        code, 
-        description, 
-        unit_price, 
-        quantity, 
-        status,
-        created_at,
-        sessions!inner(name)
-      `)
-      .eq('id', orderId)
-      .single()
+    try {
+      // Charger la commande avec tous ses détails
+      const { data: orderData, error: orderError } = await loadOrderWithDetails(orderId)
 
-    if (orderError) {
-      console.error('Erreur lors du chargement de la commande:', orderError)
-      return
-    }
+      if (orderError) {
+        console.error('Erreur lors du chargement de la commande:', orderError)
+        return
+      }
 
-    // Charger ou créer le client
-    const { data: customerData, error: customerError } = await supabase
-      .from('customers')
-      .upsert([{ tiktok_name: orderData.tiktok_name }], {
-        onConflict: 'tiktok_name',
-        ignoreDuplicates: false
-      })
-      .select()
-      .single()
+      setOrder(orderData)
 
-    if (customerError) {
-      console.error('Erreur lors du chargement du client:', customerError)
-      return
-    }
+      // Charger le client avec tous ses contacts
+      const { data: customerData, error: customerError } = await loadCustomerWithContacts(orderData.customer_id)
 
-    // Initialiser le statut de la commande et le mode de livraison par défaut si ce n'est pas déjà fait
-    const updatedCustomerData = {
-      ...customerData,
-      order_status: customerData.order_status || 'CHECKOUT EN COURS',
-      delivery_mode: customerData.delivery_mode || 'VIA SERVICE DE LIVRAISON'
-    }
-    
-    setCustomer(updatedCustomerData)
-    
-    // Mettre à jour les valeurs par défaut dans la base si nécessaire
-    const updates = {}
-    if (!customerData.order_status) {
-      updates.order_status = 'CHECKOUT EN COURS'
-    }
-    if (!customerData.delivery_mode) {
-      updates.delivery_mode = 'VIA SERVICE DE LIVRAISON'
-    }
-    
-    if (Object.keys(updates).length > 0) {
-      await supabase
-        .from('customers')
-        .update(updates)
-        .eq('tiktok_name', customerData.tiktok_name)
-    }
+      if (customerError) {
+        console.error('Erreur lors du chargement du client:', customerError)
+        return
+      }
 
-    // Charger toutes les commandes en attente pour ce client
-    const { data: ordersData, error: ordersError } = await supabase
-      .from('orders')
-      .select(`
-        id, 
-        tiktok_name, 
-        code, 
-        description, 
-        unit_price, 
-        quantity, 
-        status,
-        created_at,
-        sessions!inner(name)
-      `)
-      .eq('tiktok_name', orderData.tiktok_name)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false })
+      // Initialiser les valeurs par défaut si nécessaire
+      const updatedCustomerData = {
+        ...customerData,
+        order_status: orderData.order_status || 'CHECKOUT EN COURS',
+        delivery_mode: orderData.delivery_mode || 'VIA SERVICE DE LIVRAISON'
+      }
 
-    if (ordersError) {
-      console.error('Erreur lors du chargement des commandes:', ordersError)
-      return
+      setCustomer(updatedCustomerData)
+
+      // Mettre à jour les valeurs par défaut dans la base si nécessaire
+      const updates = {}
+      if (!orderData.order_status) {
+        updates.order_status = 'CHECKOUT EN COURS'
+      }
+      if (!orderData.delivery_mode) {
+        updates.delivery_mode = 'VIA SERVICE DE LIVRAISON'
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await supabase
+          .from('orders')
+          .update(updates)
+          .eq('id', orderId)
+      }
+
+    } catch (err) {
+      console.error('Erreur lors du chargement:', err)
     }
-
-    setOrders(ordersData || [])
   }
 
-  const updateField = useCallback((field, value) => {
-    setCustomer((prev) => ({ ...(prev || {}), [field]: value }))
-    if (saveTimer.current) clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(async () => {
-      setSaving(true)
-      try {
-        const { error } = await supabase
-          .from('customers')
-          .update({ [field]: value, updated_at: new Date().toISOString() })
-          .eq('tiktok_name', customer.tiktok_name)
+  // Fonction pour forcer la sauvegarde immédiate de l'état actuel
+  const forceSave = useCallback(async () => {
+    if (!order?.id || isReadOnly) return
 
-        if (error) {
-          console.error('Erreur lors de la mise à jour:', error)
-        }
-      } catch (err) {
-        console.error('Erreur lors de la mise à jour:', err)
-      } finally {
-        setSaving(false)
+    setSaving(true)
+    try {
+      // Mettre à jour la commande (seulement les champs de la table orders)
+      const { error: orderError } = await supabase
+        .from('orders')
+        .update({
+          delivery_mode: order.delivery_mode,
+          delivery_date: order.delivery_date,
+          payment_method: order.payment_method,
+          payment_reference: order.payment_reference,
+          deposit_amount: order.deposit_amount,
+          is_province: order.is_province,
+          transport: order.transport,
+          order_status: order.order_status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', order.id)
+
+      if (orderError) {
+        console.error('Erreur lors de la sauvegarde de la commande:', orderError)
+        throw orderError
       }
-    }, 500)
-  }, [customer?.tiktok_name])
+
+      // Mettre à jour le client si nécessaire
+      if (customer) {
+        const { error: customerError } = await updateCustomer(customer.id, {
+          real_name: customer.real_name,
+          photo_url: customer.photo_url
+        })
+
+        if (customerError) {
+          console.error('Erreur lors de la sauvegarde du client:', customerError)
+        }
+      }
+
+    } catch (err) {
+      console.error('Erreur lors de la sauvegarde forcée:', err)
+      throw err
+    } finally {
+      setSaving(false)
+    }
+  }, [order, customer, isReadOnly])
+
+  const updateField = useCallback(async (field, value) => {
+    // Ne pas permettre les modifications si la commande est confirmée
+    if (isReadOnly) {
+      return
+    }
+
+    const orderFields = ['delivery_mode', 'delivery_date', 'payment_method', 'deposit_amount', 'payment_reference', 'order_status', 'is_province', 'transport']
+    const contactFields = ['phone', 'address']
+
+    if (orderFields.includes(field)) {
+      // Champ de commande
+      setOrder((prev) => ({ ...(prev || {}), [field]: value }))
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+      saveTimer.current = setTimeout(async () => {
+        setSaving(true)
+        try {
+          const { error } = await supabase
+            .from('orders')
+            .update({ [field]: value, updated_at: new Date().toISOString() })
+            .eq('id', order.id)
+
+          if (error) {
+            console.error('Erreur lors de la mise à jour de la commande:', error)
+          }
+        } catch (err) {
+          console.error('Erreur lors de la mise à jour de la commande:', err)
+        } finally {
+          setSaving(false)
+        }
+      }, 500)
+    } else if (contactFields.includes(field)) {
+      // Champs de contact (téléphone/adresse)
+      setCustomer((prev) => ({
+        ...(prev || {}),
+        [field]: value,
+        [`primary_${field === 'phone' ? 'phone' : 'address'}`]: { [field]: value, is_primary: true }
+      }))
+
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+      saveTimer.current = setTimeout(async () => {
+        setSaving(true)
+        try {
+          if (field === 'phone') {
+            await getOrCreateCustomerPhone(customer.id, value, true)
+          } else if (field === 'address') {
+            await getOrCreateCustomerAddress(customer.id, value, true)
+          }
+        } catch (err) {
+          console.error('Erreur lors de la mise à jour du contact:', err)
+        } finally {
+          setSaving(false)
+        }
+      }, 500)
+    } else {
+      // Champ de client (nom, photo, etc.)
+      setCustomer((prev) => ({ ...(prev || {}), [field]: value }))
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+      saveTimer.current = setTimeout(async () => {
+        setSaving(true)
+        try {
+          const { error } = await supabase
+            .from('customers')
+            .update({ [field]: value, updated_at: new Date().toISOString() })
+            .eq('id', customer.id)
+
+          if (error) {
+            console.error('Erreur lors de la mise à jour du client:', error)
+          }
+        } catch (err) {
+          console.error('Erreur lors de la mise à jour du client:', err)
+        } finally {
+          setSaving(false)
+        }
+      }, 500)
+    }
+  }, [order?.id, customer?.id, isReadOnly])
 
   const subtotal = useMemo(() => {
-    return orders.reduce((sum, order) => {
-      return sum + (Number(order.unit_price || 0) * Number(order.quantity || 0))
-    }, 0)
-  }, [orders])
+    return calculateOrderTotal(order?.lines || [])
+  }, [order?.lines])
 
   const paymentMethods = [
     { value: 'especes', label: t('checkout.paymentMethods.especes') },
@@ -182,62 +249,69 @@ export default function CheckoutPage() {
   ]
 
   // Filtrer les modes de paiement selon si c'est en province
-  const availablePaymentMethods = customer?.is_province 
+  const availablePaymentMethods = order?.is_province 
     ? paymentMethods.filter(method => ['mvola', 'orange_money', 'airtel_money'].includes(method.value))
     : paymentMethods
 
   // Vérifier si le mode de paiement est Mobile Money
-  const isMobileMoney = ['mvola', 'orange_money', 'airtel_money'].includes(customer?.payment_method)
+  const isMobileMoney = ['mvola', 'orange_money', 'airtel_money'].includes(order?.payment_method)
 
   // Vérifier si l'acompte est égal au total
-  const isFullyPaid = customer?.deposit_amount === subtotal && subtotal > 0
+  const isFullyPaid = order?.deposit_amount === subtotal && subtotal > 0
 
-  // Validation pour le checkout
-  const canFinalizeCheckout = () => {
+  // Validation pour le checkout - retourne les champs manquants
+  const getMissingFields = () => {
+    const missing = []
+
     // Vérification des champs obligatoires de base
-    if (!customer?.real_name || !customer?.phone || !customer?.address || !customer?.delivery_date || !customer?.delivery_mode || !customer?.payment_method) {
-      return false
+    if (!customer?.real_name) {
+      missing.push(t('checkout.validation.customerName'))
     }
     
-    // Règles spéciales pour les commandes en province
-    if (customer?.is_province) {
-      // En province, seuls les modes de paiement mobile money sont autorisés
-      if (!['mvola', 'orange_money', 'airtel_money'].includes(customer?.payment_method)) {
-        return false
-      }
-      
-      // En province, l'acompte est obligatoire et doit être > 0
-      if (!customer?.deposit_amount || customer.deposit_amount <= 0) {
-        return false
-      }
-    } else {
-      // Acompte requis seulement si le mode de paiement n'est pas "especes"
-      if (customer?.payment_method !== 'especes') {
-        if (!customer?.deposit_amount || customer.deposit_amount <= 0) {
-          return false
-        }
-      }
+    if (!customer?.primary_phone?.phone) {
+      missing.push(t('checkout.validation.phone'))
+    }
+
+    if (!customer?.primary_address?.address) {
+      missing.push(t('checkout.validation.address'))
+    }
+
+    if (!order?.delivery_mode) {
+      missing.push(t('checkout.validation.deliveryMode'))
+    }
+
+    if (!order?.delivery_date) {
+      missing.push(t('checkout.validation.deliveryDate'))
+    }
+
+    if (!order?.payment_method) {
+      missing.push(t('checkout.validation.paymentMethod'))
     }
     
-    // Acompte ne doit pas dépasser le total (si un acompte est saisi)
-    if (customer?.deposit_amount && customer.deposit_amount > subtotal) {
-      return false
+    // Vérifications spécifiques selon le mode de paiement
+    const isMobileMoney = order?.payment_method && order?.payment_method !== 'especes'
+    if (isMobileMoney && !order?.payment_reference) {
+      missing.push(t('checkout.validation.paymentReference'))
     }
     
-    // Référence de paiement requise pour Mobile Money
-    if (isMobileMoney && (!customer?.payment_reference || customer.payment_reference.trim() === '')) {
-      return false
+    // Vérifications spécifiques pour la province
+    if (order?.is_province && !order?.transport) {
+      missing.push(t('checkout.validation.transportName'))
     }
     
-    // Si "Payé" est coché, acompte doit être égal au total (si un acompte est saisi)
-    if (customer?.fully_paid && customer?.deposit_amount && customer.deposit_amount !== subtotal) {
-      return false
+    // Vérification du montant d'acompte (au moins 50%)
+    if (order?.deposit_amount < subtotal * 0.5) {
+      missing.push(t('checkout.validation.minimumDeposit'))
     }
     
-    return true
+    return missing
   }
 
-  if (!customer) return (
+  const canFinalizeCheckout = () => {
+    return getMissingFields().length === 0
+  }
+
+  if (!order) return (
     <Box sx={{ 
       width: '100%', 
       height: '100vh', 
@@ -247,22 +321,21 @@ export default function CheckoutPage() {
       margin: 0,
       padding: 0
     }}>
-      <Typography variant="h6">Chargement...</Typography>
+      <Typography variant="h6">{t('checkout.messages.loadingOrder')}</Typography>
     </Box>
   )
 
   // Calculer les étapes du checkout
   const getCompletionStep = () => {
-    if (!customer?.real_name || !customer?.phone || !customer?.address) return 0
-    if (!customer?.delivery_date || !customer?.delivery_mode || !customer?.payment_method) return 1
+    if (!order?.delivery_date || !order?.delivery_mode || !order?.payment_method) return 0
     
     // Règles d'acompte selon si c'est en province ou non
-    if (customer?.is_province) {
+    if (order?.is_province) {
       // En province, acompte obligatoire > 0
-      if (!customer?.deposit_amount || customer.deposit_amount <= 0) return 2
+      if (!order?.deposit_amount || order.deposit_amount <= 0) return 2
     } else {
       // Acompte requis seulement si le mode de paiement n'est pas "especes"
-      if (customer?.payment_method !== 'especes' && (!customer?.deposit_amount || customer.deposit_amount <= 0)) return 2
+      if (order?.payment_method !== 'especes' && (!order?.deposit_amount || order.deposit_amount <= 0)) return 2
     }
     
     return 3
@@ -298,14 +371,14 @@ export default function CheckoutPage() {
               fontSize: '1.2rem',
               fontWeight: 'bold'
             }}>
-              {customer.tiktok_name?.charAt(0).toUpperCase()}
+              {customer?.tiktok_name?.charAt(0).toUpperCase()}
             </Avatar>
             <Box>
               <Typography variant="h4" sx={{ fontWeight: 600, mb: 0.5 }}>
                 {t('checkout.title')}
               </Typography>
               <Typography variant="subtitle1" sx={{ opacity: 0.9 }}>
-                @{customer.tiktok_name}
+                @{customer?.tiktok_name}
               </Typography>
             </Box>
           </Box>
@@ -335,6 +408,26 @@ export default function CheckoutPage() {
         </Box>
       </Box>
       
+      {/* Message d'information pour les commandes confirmées */}
+      {isReadOnly && (
+        <Box sx={{
+          backgroundColor: '#fff3cd',
+          border: '1px solid #ffeaa7',
+          borderRadius: 2,
+          p: 2,
+          m: 2,
+          mx: 'auto',
+          maxWidth: 1200
+        }}>
+          <Typography variant="body1" sx={{ fontWeight: 600, color: '#856404' }}>
+            ⚠️ Cette commande a été confirmée et ne peut plus être modifiée.
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#856404', mt: 0.5 }}>
+            Vous pouvez consulter les détails mais aucune modification n'est possible.
+          </Typography>
+        </Box>
+      )}
+
       {/* Conteneur principal avec padding et max-width */}
       <Box sx={{ 
         flex: 1, 
@@ -383,10 +476,13 @@ export default function CheckoutPage() {
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   <TextField
                     label={t('checkout.customerName')}
-                    value={customer.real_name || ''}
-                    onChange={(e) => updateField('real_name', e.target.value)}
+                    value={customer?.real_name || ''}
+                    onChange={(e) => {
+                      setCustomer(prev => ({ ...prev, real_name: e.target.value }))
+                    }}
                     fullWidth
                     variant="outlined"
+                    disabled={isReadOnly}
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         borderRadius: 2,
@@ -399,16 +495,17 @@ export default function CheckoutPage() {
                         }
                       }
                     }}
-                    error={!customer.real_name}
-                    helperText={!customer.real_name ? t('checkout.required') : ''}
+                    error={!customer?.real_name}
+                    helperText={!customer?.real_name ? t('checkout.required') : ''}
                   />
                  
                   <TextField
                     label={t('checkout.phone')}
-                    value={customer.phone || ''}
+                    value={customer?.primary_phone?.phone || ''}
                     onChange={(e) => updateField('phone', e.target.value)}
                     fullWidth
                     variant="outlined"
+                    disabled={isReadOnly}
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         borderRadius: 2,
@@ -421,13 +518,13 @@ export default function CheckoutPage() {
                         }
                       }
                     }}
-                    error={!customer.phone}
-                    helperText={!customer.phone ? t('checkout.required') : ''}
+                    error={!customer?.primary_phone?.phone}
+                    helperText={!customer?.primary_phone?.phone ? t('checkout.required') : ''}
                   />
                  
                   <TextField
                     label={t('checkout.deliveryAddress')}
-                    value={customer.address || ''}
+                    value={customer?.primary_address?.address || ''}
                     onChange={(e) => updateField('address', e.target.value)}
                     fullWidth
                     multiline
@@ -445,40 +542,43 @@ export default function CheckoutPage() {
                         }
                       }
                     }}
-                    error={!customer.address}
-                    helperText={!customer.address ? t('checkout.required') : ''}
+                    error={!customer?.primary_address?.address}
+                    helperText={!customer?.primary_address?.address ? t('checkout.required') : ''}
                   />
                   
                   <FormControlLabel
                     control={
                       <Checkbox
-                        checked={customer?.is_province || false}
+                        checked={order?.is_province || false}
                         onChange={(e) => {
                           const isProvince = e.target.checked
                           updateField('is_province', isProvince)
                           
                           // Si on coche "Province" et que le mode de paiement actuel est "especes",
                           // le réinitialiser car seuls les modes mobile money sont autorisés en province
-                          if (isProvince && customer?.payment_method === 'especes') {
+                          if (isProvince && order?.payment_method === 'especes') {
                             updateField('payment_method', '')
                           }
                           
-                          // Si on décoche "Province" et qu'il n'y a pas de mode de paiement sélectionné,
-                          // ne rien faire (laisser l'utilisateur choisir)
+                          // Si on décoche "Province", vider le champ transport
+                          if (!isProvince && order?.transport) {
+                            updateField('transport', '')
+                          }
                         }}
+                        disabled={isReadOnly}
                       />
                     }
                     label={t('checkout.province')}
                   />
                   
-                  {customer?.is_province && (
+                  {order?.is_province && (
                     <TextField
                       label={t('checkout.transport')}
-                      value={customer.transport || ''}
+                      value={order?.transport || ''}
                       onChange={(e) => updateField('transport', e.target.value)}
                       fullWidth
                       variant="outlined"
-                      placeholder="Nom du transporteur"
+                      placeholder={t('checkout.placeholders.transportName')}
                     />
                   )}
                 
@@ -489,9 +589,10 @@ export default function CheckoutPage() {
                       Mode de livraison
                     </Typography>
                     <RadioGroup
-                      value={customer.delivery_mode || ''}
+                      value={order?.delivery_mode || ''}
                       onChange={(e) => updateField('delivery_mode', e.target.value)}
                       row
+                      disabled={isReadOnly}
                       sx={{ 
                         gap: 1, 
                         flexWrap: 'nowrap',
@@ -560,12 +661,12 @@ export default function CheckoutPage() {
 
                                      <TextField
                      label={
-                       customer?.delivery_mode === 'RECUPERATION' 
-                         ? 'Date de récupération' 
+                      order?.delivery_mode === 'RECUPERATION'
+                        ? t('checkout.messages.pickupDate')
                          : t('checkout.deliveryDate')
                      }
                      type="date"
-                     value={customer.delivery_date || ''}
+                    value={order?.delivery_date || ''}
                      onChange={(e) => updateField('delivery_date', e.target.value)}
                      fullWidth
                      variant="outlined"
@@ -580,9 +681,18 @@ export default function CheckoutPage() {
                       {t('checkout.paymentMethod')}
                     </Typography>
                     <RadioGroup
-                      value={customer.payment_method || ''}
-                      onChange={(e) => updateField('payment_method', e.target.value)}
+                      value={order?.payment_method || ''}
+                      onChange={(e) => {
+                        const newPaymentMethod = e.target.value
+                        updateField('payment_method', newPaymentMethod)
+
+                        // Vider la référence de paiement lors du changement de mode
+                        if (order?.payment_reference) {
+                          updateField('payment_reference', '')
+                        }
+                      }}
                       row
+                      disabled={isReadOnly}
                       sx={{ gap: 1, flexWrap: 'wrap' }}
                     >
                       {availablePaymentMethods.map((method) => (
@@ -623,21 +733,16 @@ export default function CheckoutPage() {
                   <TextField
                     label={t('checkout.deposit')}
                     type="number"
-                    value={customer?.deposit_amount || 0}
+                    value={order?.deposit_amount || 0}
                     onChange={(e) => {
                       const value = Number(e.target.value) || 0
                       updateField('deposit_amount', value)
                       
-                      // Si l'acompte est égal au total, cocher automatiquement "Payé"
-                      if (value === subtotal && subtotal > 0) {
-                        updateField('fully_paid', true)
-                      } else if (customer?.fully_paid && value !== subtotal) {
-                        // Si "Payé" était coché mais l'acompte ne correspond plus au total, décocher
-                        updateField('fully_paid', false)
-                      }
+                      // Note: Le statut "payé" est automatiquement calculé basé sur deposit_amount >= total_amount
                     }}
                     fullWidth
                     variant="outlined"
+                    disabled={isReadOnly}
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         borderRadius: 2,
@@ -655,15 +760,15 @@ export default function CheckoutPage() {
                       max: subtotal,
                       step: 100
                     }}
-                    error={customer?.deposit_amount > subtotal}
+                    error={order?.deposit_amount > subtotal}
                     helperText={
-                      customer?.deposit_amount > subtotal 
+                      order?.deposit_amount > subtotal 
                         ? t('checkout.depositExceedsTotal') 
-                        : customer?.is_province
-                          ? "Acompte obligatoire pour les commandes en province"
-                          : customer?.payment_method === 'especes' 
+                        : order?.is_province
+                          ? t('checkout.messages.depositRequiredProvince')
+                          : order?.payment_method === 'especes' 
                             ? t('checkout.depositOptionalCash')
-                            : customer?.payment_method && customer?.payment_method !== 'especes'
+                            : order?.payment_method && order?.payment_method !== 'especes'
                               ? t('checkout.depositRequired')
                               : ""
                     }
@@ -672,29 +777,31 @@ export default function CheckoutPage() {
                   {isMobileMoney && (
                     <TextField
                       label={t('checkout.paymentReference')}
-                      value={customer?.payment_reference || ''}
+                      value={order?.payment_reference || ''}
                       onChange={(e) => updateField('payment_reference', e.target.value)}
                       fullWidth
                       variant="outlined"
-                      placeholder="Numéro de transaction"
+                      placeholder={t('checkout.placeholders.paymentReference')}
                       required
                     />
                   )}
                   
                                      <FormControlLabel
                       control={
-                        <Checkbox
-                          checked={customer?.fully_paid || false}
+                      <Checkbox
+                        checked={isFullyPaid}
                           onChange={(e) => {
                             const checked = e.target.checked
-                            updateField('fully_paid', checked)
                             
                             // Si on coche "Payé", mettre l'acompte égal au total
                             if (checked && subtotal > 0) {
                               updateField('deposit_amount', subtotal)
+                            } else if (!checked) {
+                              // Si on décoche "Payé", mettre l'acompte à 0
+                              updateField('deposit_amount', 0)
                             }
                           }}
-                          disabled={!isFullyPaid && customer?.deposit_amount !== subtotal}
+                        disabled={isReadOnly}
                         />
                       }
                       label={t('checkout.paid')}
@@ -705,10 +812,10 @@ export default function CheckoutPage() {
                       Statut de la commande
                     </Typography>
                     <Chip 
-                      label={customer?.order_status || 'CHECKOUT EN COURS'} 
+                      label={order?.order_status || 'CHECKOUT EN COURS'} 
                       color={
-                        customer?.order_status === 'CONFIRMEE' ? 'success' :
-                        customer?.order_status === 'CHECKOUT EN COURS' ? 'warning' :
+                        order?.order_status === 'CONFIRMEE' ? 'success' :
+                          order?.order_status === 'CHECKOUT EN COURS' ? 'warning' :
                         'default'
                       }
                       variant="outlined"
@@ -753,14 +860,14 @@ export default function CheckoutPage() {
                     width: 8, 
                     height: 8, 
                     borderRadius: '50%', 
-                    bgcolor: orders.length > 0 ? 'success.main' : 'grey.300',
+                    bgcolor: order?.lines?.length > 0 ? 'success.main' : 'grey.300',
                     transition: 'all 0.3s ease'
                   }} />
                   <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
                     {t('checkout.orders')} 
                   </Typography>
                   <Chip 
-                    label={orders.length} 
+                    label={order?.lines?.length} 
                     size="small" 
                     color="primary" 
                     variant="outlined"
@@ -768,7 +875,7 @@ export default function CheckoutPage() {
                   />
                 </Box>
                 
-                {orders.length === 0 ? (
+                {order?.lines?.length === 0 ? (
                   <Box sx={{ 
                     textAlign: 'center', 
                     py: 8,
@@ -827,11 +934,11 @@ export default function CheckoutPage() {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {orders.map((order, index) => {
-                          const orderTotal = Number(order.unit_price || 0) * Number(order.quantity || 0)
+                          {order?.lines?.map((line, index) => {
+                            const lineTotal = Number(line.unit_price || 0) * Number(line.quantity || 0)
                           return (
                             <TableRow
-                              key={order.id}
+                              key={line.id}
                               sx={{
                                 '&:nth-of-type(odd)': { backgroundColor: '#fafafa' },
                                 '&:hover': { 
@@ -843,7 +950,7 @@ export default function CheckoutPage() {
                             >
                               <TableCell>
                                 <Chip 
-                                  label={order.sessions?.name || 'Session inconnue'} 
+                                  label={line.sessions?.name || 'Session inconnue'} 
                                   size="small" 
                                   color="primary" 
                                   variant="outlined"
@@ -852,27 +959,27 @@ export default function CheckoutPage() {
                               </TableCell>
                               <TableCell>
                                 <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                                  {order.code}
+                                  {line.code}
                                 </Typography>
                               </TableCell>
                               <TableCell sx={{ maxWidth: '300px' }}>
                                 <Typography variant="body2" sx={{ lineHeight: 1.4 }}>
-                                  {order.description}
+                                  {line.description}
                                 </Typography>
                               </TableCell>
                               <TableCell align="right">
                                 <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                  {Number(order.unit_price).toLocaleString('fr-FR')} 
+                                  {Number(line.unit_price).toLocaleString('fr-FR')} 
                                 </Typography>
                               </TableCell>
                               <TableCell align="center">
                                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                  {order.quantity}
+                                  {line.quantity}
                                 </Typography>
                               </TableCell>
                               <TableCell align="right">
                                 <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'success.main' }}>
-                                  {orderTotal.toLocaleString('fr-FR')} 
+                                  {lineTotal.toLocaleString('fr-FR')} 
                                 </Typography>
                               </TableCell>
                             </TableRow>
@@ -883,7 +990,7 @@ export default function CheckoutPage() {
                   </TableContainer>
                 )}
                 
-                {orders.length > 0 && (
+                {order?.lines?.length > 0 && (
                   <Box sx={{ mt: 4 }}>
                     <Divider sx={{ mb: 3 }} />
                     
@@ -909,7 +1016,7 @@ export default function CheckoutPage() {
                             Acompte versé
                           </Typography>
                           <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                            {(customer?.deposit_amount || 0).toLocaleString('fr-FR')}
+                            {(order?.deposit_amount || 0).toLocaleString('fr-FR')}
                           </Typography>
                         </Box>
                         
@@ -918,11 +1025,11 @@ export default function CheckoutPage() {
                             Reste à payer
                           </Typography>
                           <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                            {(subtotal - (customer?.deposit_amount || 0)).toLocaleString('fr-FR')}
+                            {(subtotal - (order?.deposit_amount || 0)).toLocaleString('fr-FR')}
                           </Typography>
                         </Box>
                         
-                        {customer?.payment_method === 'especes' && (!customer?.deposit_amount || customer.deposit_amount === 0) && (
+                        {order?.payment_method === 'especes' && (!order?.deposit_amount || order.deposit_amount === 0) && (
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.9 }}>
                             <Typography variant="body2">
                               Mode de paiement
@@ -959,39 +1066,64 @@ export default function CheckoutPage() {
                       />
                     </Box>
                     
-                    {/* Bouton de finalisation */}
-                    <Box sx={{ display: 'flex', justifyContent: { xs: 'stretch', md: 'flex-end' } }}>
-                      <Button 
+                    {/* Bouton de finalisation - masqué pour les commandes confirmées */}
+                    {!isReadOnly && (
+                      <Box sx={{ display: 'flex', justifyContent: { xs: 'stretch', md: 'flex-end' } }}>
+                        <Button 
                         variant="contained" 
                         size="large"
                         disabled={!canFinalizeCheckout()}
-                                              onClick={async () => {
-                        if (canFinalizeCheckout()) {
-                          try {
-                            // Mettre à jour le statut de la commande à "CONFIRMEE"
-                            const { error } = await supabase
-                              .from('customers')
-                              .update({ 
-                                order_status: 'CONFIRMEE',
-                                updated_at: new Date().toISOString()
-                              })
-                              .eq('tiktok_name', customer.tiktok_name)
+                          onClick={async () => {
+                            if (canFinalizeCheckout()) {
+                              try {
+                                // 1. D'abord, annuler tout auto-save en cours et forcer la sauvegarde
+                                if (saveTimer.current) {
+                                  clearTimeout(saveTimer.current)
+                                }
 
-                            if (error) {
-                              console.error('Erreur lors de la finalisation:', error)
-                            } else {
-                              // Mettre à jour l'état local
-                              setCustomer(prev => ({
+                                // Utiliser forceSave pour sauvegarder l'état actuel complet
+                                await forceSave()
+
+                                // 2. Puis mettre à jour le statut à "CONFIRMEE"
+                                const { error: orderError } = await supabase
+                                  .from('orders')
+                                  .update({
+                                    order_status: 'CONFIRMEE',
+                                    updated_at: new Date().toISOString()
+                                  })
+                                  .eq('id', order.id)
+
+                                if (orderError) {
+                                  alert('Erreur lors de la finalisation de la commande: ' + orderError.message)
+                                  return
+                                }
+
+                                // 3. Mettre à jour l'état local
+                                setOrder(prev => ({
                                 ...prev,
                                 order_status: 'CONFIRMEE'
                               }))
-                              console.log('Checkout finalisé avec succès')
+
+                                // Mettre à jour les commandes locales aussi
+                                setOrder(prev => prev.lines.map(line => ({
+                                  ...line,
+                                  status: 'completed'
+                                })))
+
+                                alert('Commande finalisée avec succès ! Elle apparaîtra dans la préparation des commandes.')
+
+                                // Redirection vers la liste des commandes en attente
+                                setTimeout(() => {
+                                  navigate('/pending')
+                                }, 1500)
+                              } catch (err) {
+                                alert('Erreur technique: ' + err.message)
+                                setSaving(false)
+                              }
+                            } else {
+                              alert('Veuillez compléter tous les champs obligatoires')
                             }
-                          } catch (err) {
-                            console.error('Erreur lors de la finalisation:', err)
-                          }
-                        }
-                      }}
+                          }}
                         sx={{
                           height: 56,
                           borderRadius: 2,
@@ -1014,20 +1146,28 @@ export default function CheckoutPage() {
                         {canFinalizeCheckout() 
                           ? t('checkout.finalizeCheckout')
                           : 'Veuillez compléter les informations requises'
-                        }
+                          }
                       </Button>
-                    </Box>
+                      </Box>
+                    )}
                     
-                    {!canFinalizeCheckout() && (
-                      <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
-                        <Typography variant="body2">
-                          Complétez toutes les informations obligatoires pour finaliser la commande.
+                    {!canFinalizeCheckout() && !isReadOnly && (
+                      <Alert severity="warning" sx={{ mt: 2, borderRadius: 2 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                          {t('checkout.messages.missingFieldsTitle')}
                         </Typography>
-                        <Typography variant="caption" sx={{ mt: 1, display: 'block' }}>
-                          Debug: Mode={customer?.payment_method}, Livraison={customer?.delivery_mode}, Acompte={customer?.deposit_amount}, 
-                          Nom={!!customer?.real_name}, Tél={!!customer?.phone}, 
-                          Adresse={!!customer?.address}, Date={!!customer?.delivery_date}
-                        </Typography>
+                        <Box component="ul" sx={{ pl: 2, m: 0 }}>
+                          {getMissingFields().map((field, index) => (
+                            <Typography
+                              key={index}
+                              component="li"
+                              variant="body2"
+                              sx={{ mb: 0.5, color: 'warning.dark' }}
+                            >
+                              {field}
+                            </Typography>
+                          ))}
+                        </Box>
                       </Alert>
                     )}
                   </Box>

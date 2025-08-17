@@ -18,17 +18,24 @@ export default function PendingPage() {
 
   async function reload() {
     const { data, error } = await supabase
-      .from('orders')
+      .from('order_lines')
       .select(`
-        id, 
-        tiktok_name, 
+        id,
+        code,
+        description,
         unit_price, 
         quantity,
-        session_id,
-        status,
-        sessions!inner(name, start_at)
+        line_total,
+        orders!inner(
+          id,
+          customer_id,
+          session_id,
+          order_status,
+          customers!inner(tiktok_name),
+          sessions!inner(name, start_at)
+        )
       `)
-      .eq('status', 'pending')
+      .in('orders.order_status', ['CHECKOUT EN COURS', 'CREEE'])
       .order('created_at', { ascending: false })
       .limit(2000)
 
@@ -44,36 +51,36 @@ export default function PendingPage() {
 
     // D'abord, grouper par client
     for (const r of rows) {
-      const customerKey = r.tiktok_name
-      const sessionKey = r.sessions?.name || t('pending.unknownSession')
+      const customerKey = r.orders?.customers?.tiktok_name
+      const sessionKey = r.orders?.sessions?.name || t('pending.unknownSession')
 
       // Grouper par client
       const customerPrev = customerMap.get(customerKey) || {
         tiktok_name: customerKey,
         session_name: sessionKey,
-        session_start: r.sessions?.start_at,
+        session_start: r.orders?.sessions?.start_at,
         total_qty: 0,
         subtotal: 0,
-        firstOrderId: r.id  // Ajouter l'ID de la première commande
+        firstOrderId: r.orders?.id  // Ajouter l'ID de la première commande
       }
       customerPrev.total_qty += Number(r.quantity || 0)
-      customerPrev.subtotal += Number(r.unit_price || 0) * Number(r.quantity || 0)
+      customerPrev.subtotal += Number(r.line_total || 0)
       // Garder la première commande comme référence pour le checkout
       if (!customerPrev.firstOrderId) {
-        customerPrev.firstOrderId = r.id
+        customerPrev.firstOrderId = r.orders?.id
       }
       customerMap.set(customerKey, customerPrev)
 
       // Calculer les totaux par session
       const sessionPrev = sessionMap.get(sessionKey) || {
         session_name: sessionKey,
-        session_start: r.sessions?.start_at,
+        session_start: r.orders?.sessions?.start_at,
         total_qty: 0,
         subtotal: 0,
         customers: []
       }
       sessionPrev.total_qty += Number(r.quantity || 0)
-      sessionPrev.subtotal += Number(r.unit_price || 0) * Number(r.quantity || 0)
+      sessionPrev.subtotal += Number(r.line_total || 0)
       sessionMap.set(sessionKey, sessionPrev)
     }
 

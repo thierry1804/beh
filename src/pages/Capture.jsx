@@ -7,11 +7,13 @@ import { useNavigate } from 'react-router-dom'
 import { Button, Card, CardContent, Stack, Chip } from '@mui/material'
 import PageHeader from '../components/PageHeader'
 import { useTranslation } from 'react-i18next'
+import { getOrCreateCustomer, addLineToOrder } from '../lib/orderUtils'
+import { loadAllCustomersWithPrimaryContacts } from '../lib/customerUtils'
 
 export default function CapturePage() {
   const [selectedSessionId] = useLocalStorage('selectedSessionId', null)
   const [selectedSessionName] = useLocalStorage('selectedSessionName', '')
-  const [orders, setOrders] = useState([])
+  const [orderLines, setOrderLines] = useState([])
   const [handles, setHandles] = useState([])
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
@@ -37,52 +39,142 @@ export default function CapturePage() {
 
   // Récupérer tous les codes existants dans la session pour la vérification d'unicité
   const existingCodes = useMemo(() => {
-    return orders.map(order => order.code).filter(Boolean)
-  }, [orders])
+    return orderLines.map(line => line.code).filter(Boolean)
+  }, [orderLines])
 
   async function reload() {
-    const [{ data: ordersData }, { data: customersData }] = await Promise.all([
-      supabase
-        .from('orders')
-        .select('*')
-        .eq('session_id', selectedSessionId)
+    if (!selectedSessionId) return
+
+    try {
+      // Charger les lignes de commande de la session actuelle
+      const { data: linesData, error: linesError } = await supabase
+        .from('order_lines')
+        .select(`
+          *,
+          orders!inner(
+            id,
+            session_id,
+            order_number,
+            order_date,
+            order_status,
+            customers!inner(tiktok_name, real_name)
+          )
+        `)
+        .eq('orders.session_id', selectedSessionId)
         .order('created_at', { ascending: false })
-        .limit(500),
-      supabase
-        .from('customers')
-        .select('tiktok_name')
-        .order('updated_at', { ascending: false })
-        .limit(2000),
-    ])
-    setOrders(ordersData || [])
-    setHandles((customersData || []).map((c) => c.tiktok_name).filter(Boolean))
+        .limit(500)
+
+      if (linesError) {
+        console.error('Erreur lors du chargement des lignes:', linesError)
+        return
+      }
+
+      // Charger les clients pour l'autocomplétion
+      const { data: customersData, error: customersError } = await loadAllCustomersWithPrimaryContacts()
+
+      if (customersError) {
+        console.error('Erreur lors du chargement des clients:', customersError)
+        return
+      }
+
+      setOrderLines(linesData || [])
+      setHandles((customersData || []).map((c) => c.tiktok_name).filter(Boolean))
+    } catch (err) {
+      console.error('Erreur lors du rechargement:', err)
+    }
   }
 
   async function handleSubmit(line) {
     if (!selectedSessionId) return
-    // Chercher une ligne existante (même pseudo + code + description)
-    const { data: existing } = await supabase
-      .from('orders')
-      .select('id, quantity')
-      .eq('session_id', selectedSessionId)
-      .ilike('tiktok_name', line.tiktokName)
-      .ilike('description', line.description)
-      .eq('code', line.code)
-      .limit(1)
-      .maybeSingle()
 
-    if (existing) {
-      const merge = window.confirm(t('capture.mergeConfirmation'))
-      if (merge) {
-        await supabase.from('orders').update({ quantity: (existing.quantity || 0) + line.quantity }).eq('id', existing.id)
-      } else {
-        await supabase.from('orders').insert([{ session_id: selectedSessionId, tiktok_name: line.tiktokName, code: line.code, description: line.description, unit_price: line.unitPrice, quantity: line.quantity }])
+    try {
+      // 1. Créer ou récupérer le client
+      const { data: customer, error: customerError } = await getOrCreateCustomer(line.tiktokName)
+      if (customerError) {
+        console.error('Erreur lors de la création du client:', customerError)
+        return
       }
-    } else {
-      await supabase.from('orders').insert([{ session_id: selectedSessionId, tiktok_name: line.tiktokName, code: line.code, description: line.description, unit_price: line.unitPrice, quantity: line.quantity }])
+
+      // 2. Chercher une commande existante pour ce client dans cette session
+      const { data: existingOrder } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('session_id', selectedSessionId)
+        .eq('customer_id', customer.id)
+        .eq('order_status', 'CREEE')
+        .single()
+
+      let orderId
+
+      if (existingOrder) {
+        // Utiliser la commande existante
+        orderId = existingOrder.id
+      } else {
+        // Créer une nouvelle commande
+        const { data: newOrder, error: orderError } = await supabase
+          .from('orders')
+          .insert([{
+            session_id: selectedSessionId,
+            customer_id: customer.id,
+            order_number: `CMD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            order_status: 'CREEE'
+          }])
+          .select()
+          .single()
+
+        if (orderError) {
+          console.error('Erreur lors de la création de la commande:', orderError)
+          return
+        }
+
+        orderId = newOrder.id
+      }
+
+      // 3. Chercher une ligne existante (même code + description)
+      const { data: existingLine } = await supabase
+        .from('order_lines')
+        .select('id, quantity')
+        .eq('order_id', orderId)
+        .eq('code', line.code)
+        .eq('description', line.description)
+        .limit(1)
+        .maybeSingle()
+
+      if (existingLine) {
+        const merge = window.confirm(t('capture.mergeConfirmation'))
+        if (merge) {
+          // Mettre à jour la quantité existante
+          await supabase
+            .from('order_lines')
+            .update({
+              quantity: (existingLine.quantity || 0) + line.quantity,
+              line_total: ((existingLine.quantity || 0) + line.quantity) * line.unitPrice
+            })
+            .eq('id', existingLine.id)
+        } else {
+          // Créer une nouvelle ligne
+          await addLineToOrder(orderId, {
+            code: line.code,
+            description: line.description,
+            unit_price: line.unitPrice,
+            quantity: line.quantity
+          })
+        }
+      } else {
+        // Créer une nouvelle ligne
+        await addLineToOrder(orderId, {
+          code: line.code,
+          description: line.description,
+          unit_price: line.unitPrice,
+          quantity: line.quantity
+        })
+      }
+
+      setOpen(false)
+      await reload()
+    } catch (err) {
+      console.error('Erreur lors de la soumission:', err)
     }
-    setOpen(false)
-    await reload()
   }
 
   return (
@@ -105,7 +197,7 @@ export default function CapturePage() {
         <Card><CardContent>{t('capture.selectSessionFirst')}</CardContent></Card>
       ) : (
         <>
-          <OrderList orders={orders} />
+            <OrderList orderLines={orderLines} />
             <QuickOrderModal
               open={open}
               onClose={() => setOpen(false)}

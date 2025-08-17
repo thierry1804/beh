@@ -96,6 +96,39 @@
       "mvola": "MVola",
       "orange_money": "Orange Money",
       "airtel_money": "Airtel Money"
+    },
+    "validation": {
+      "missingFields": "以下必填字段缺失：",
+      "customerName": "客户姓名",
+      "phone": "电话号码",
+      "deliveryDate": "配送日期",
+      "deliveryMode": "配送方式",
+      "transport": "运输（省外配送）",
+      "paymentMethod": "付款方式",
+      "paymentReference": "付款参考",
+      "depositAmount": "定金金额"
+    },
+    "placeholders": {
+      "customerName": "输入客户姓名",
+      "phone": "输入电话号码",
+      "address": "输入配送地址",
+      "transport": "运输方式",
+      "paymentReference": "付款参考号"
+    },
+    "messages": {
+      "orderCreationError": "创建订单时出错",
+      "orderUpdateError": "更新订单时出错",
+      "customerCreationError": "创建客户时出错",
+      "loadingError": "加载订单时出错",
+      "finalizationSuccess": "结账已完成！",
+      "finalizationError": "完成结账时出错",
+      "orderNotFound": "未找到该订单",
+      "invalidOrderId": "无效的订单ID",
+      "mandatoryInfoMissing": "缺少必填信息！"
+    },
+    "deliveryModes": {
+      "pickup": "自取",
+      "delivery": "配送服务"
     }
   },
   "sessions": {
@@ -120,28 +153,82 @@
   "customers": {
     "title": "客户管理",
     "tiktokName": "抖音名称",
-    "totalOrders": "总订单数",
-    "totalAmount": "总金额",
-    "lastOrder": "最后订单",
-    "viewOrders": "查看订单",
-    "loading": "正在加载客户...",
-    "searchPlaceholder": "按姓名、用户名或电话搜索...",
-    "allCustomers": "所有客户",
-    "withDeposit": "有定金",
-    "withoutDeposit": "无定金",
-    "refresh": "刷新",
-    "noCustomersFound": "没有找到符合搜索条件的客户",
-    "noCustomers": "没有注册客户",
     "realName": "真实姓名",
     "phone": "电话",
     "address": "地址",
+    "phones": "电话号码",
+    "addresses": "地址",
+    "primary": "主要",
+    "totalOrders": "总订单数",
+    "totalAmount": "总金额",
+    "lastOrder": "最后订单",
+    "lastUpdate": "最后更新",
+    "orderHistory": "订单历史",
+    "orderNumber": "订单号",
+    "orderDate": "订单日期",
     "deposit": "定金",
-    "viewEdit": "查看/编辑",
-    "createdOn": "创建于",
-    "depositPaid": "已付定金",
-    "noDeposit": "无定金",
+    "pending": "待处理",
+    "customer": "客户",
+    "contact": "联系方式",
+    "noName": "姓名未填写",
+    "noPhone": "电话未填写",
+    "noAddress": "地址未填写",
+    "noOrders": "没有订单",
+    "customerDetails": "客户详情",
+    "viewDetails": "查看详情",
+    "editOrders": "编辑订单",
+    "confirmDelete": "确认删除",
+    "deleteWarning": "您确定要删除客户 {{name}} 吗？此操作不可撤销。",
+    "loading": "正在加载客户...",
+    "searchPlaceholder": "按姓名、用户名或电话搜索...",
     "customersFound": "个客户",
-    "customersFoundPlural": "个客户"
+    "createdOn": "创建于",
+    "status": {
+      "label": "状态",
+      "all": "全部",
+      "active": "活跃",
+      "inactive": "非活跃",
+      "pending": "待处理",
+      "confirmed": "已确认",
+      "completed": "已完成"
+    },
+    "sortBy": {
+      "label": "排序",
+      "created": "创建日期",
+      "name": "姓名",
+      "orders": "订单数",
+      "amount": "总金额",
+      "lastOrder": "最后订单"
+    },
+    "orderStatus": {
+      "created": "已创建",
+      "checkout": "结账中",
+      "confirmed": "已确认",
+      "preparation": "准备中",
+      "delivered": "已交付",
+      "cancelled": "已取消"
+    },
+    "tabs": {
+      "general": "基本信息",
+      "contacts": "联系方式",
+      "orders": "订单"
+    },
+    "placeholders": {
+      "newPhone": "新电话号码",
+      "newAddress": "新地址"
+    },
+    "errors": {
+      "loadFailed": "加载客户失败",
+      "saveFailed": "保存失败",
+      "deleteFailed": "删除失败",
+      "customerNotFound": "找不到客户",
+      "addPhoneFailed": "添加电话失败",
+      "updatePhoneFailed": "更新电话失败",
+      "deletePhoneFailed": "删除电话失败",
+      "addAddressFailed": "添加地址失败",
+      "updateAddressFailed": "更新地址失败",
+      "deleteAddressFailed": "删除地址失败"
+    }
   },
   "capture": {
     "title": "订单录入",
@@ -161,6 +248,7 @@
     "selectSessionFirst": "请先在「会话」页面选择会话。",
     "mergeConfirmation": "找到相似行。合并（增加数量）？",
     "currentOrders": "进行中订单",
+    "date": "日期",
     "time": "时间",
     "username": "用户名",
     "code": "代码",
@@ -189,6 +277,59 @@
     "totalCustomers": "总客户数",
     "recentOrders": "最近订单",
     "topCustomers": "顶级客户"
+  },
+  "preparation": {
+    "title": "订单准备",
+    "filterPlaceholder": "按姓名、@用户名、电话筛选...",
+    "headers": {
+      "client": "客户",
+      "contact": "联系方式",
+      "delivery": "配送",
+      "payment": "付款",
+      "amount": "金额",
+      "commands": "订单",
+      "actions": "操作"
+    },
+    "noContact": "未填写",
+    "noAddress": "地址未填写",
+    "noName": "姓名未填写",
+    "noDate": "日期未定",
+    "deliveryModes": {
+      "pickup": "自取",
+      "delivery": "配送"
+    },
+    "paymentMethods": {
+      "especes": "现金",
+      "mvola": "MVola",
+      "orange_money": "Orange Money",
+      "airtel_money": "Airtel Money"
+    },
+    "labels": {
+      "deposit": "定金：",
+      "remaining": "余额：",
+      "paid": "已付款",
+      "reference": "参考：",
+      "transport": "运输：",
+      "province": "省份"
+    },
+    "buttons": {
+      "viewDetails": "查看详情",
+      "articles": "件商品",
+      "article": "件商品"
+    },
+    "tableHeaders": {
+      "session": "会话",
+      "code": "代码",
+      "description": "描述",
+      "unitPrice": "单价",
+      "quantity": "数量",
+      "subtotal": "小计"
+    },
+    "messages": {
+      "noConfirmedOrders": "没有已确认的订单",
+      "noSearchResults": "没有搜索结果",
+      "orderDetails": "订单详情"
+    }
   },
   "profile": {
     "title": "个人资料",

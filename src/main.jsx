@@ -7,6 +7,7 @@ import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom'
 import SessionsPage from './pages/Sessions.jsx'
 import CapturePage from './pages/Capture.jsx'
 import PendingPage from './pages/Pending.jsx'
+import PreparationPage from './pages/Preparation.jsx'
 import CustomerPage from './pages/Customer.jsx'
 import CheckoutPage from './pages/Checkout.jsx'
 import CustomersPage from './pages/Customers.jsx'
@@ -67,7 +68,7 @@ createRoot(document.getElementById('root')).render(
                 } />
                 <Route path="/prep" element={
                   <RequireRole adminOnly={false} operatorAllowed={true}>
-                    <div style={{ padding: 16 }}>À venir</div>
+                    <PreparationPage />
                   </RequireRole>
                 } />
                 <Route path="/delivery" element={
@@ -75,6 +76,7 @@ createRoot(document.getElementById('root')).render(
                     <div style={{ padding: 16 }}>À venir</div>
                   </RequireRole>
                 } />
+
               </Route>
             </Route>
           </Routes>
