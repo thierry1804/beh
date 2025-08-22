@@ -127,6 +127,7 @@
     "title": "Sessions de vente",
     "newSession": "Nouvelle session",
     "name": "Nom",
+    "type": "Type",
     "startDate": "Date de début",
     "endDate": "Date de fin",
     "status": "Statut",
@@ -140,7 +141,12 @@
     "start": "Début",
     "actions": "Actions",
     "sessionAlreadyActive": "Session déjà active",
-    "sessionInProgress": "Une session est déjà en cours"
+    "sessionInProgress": "Une session est déjà en cours",
+    "types": {
+      "liveTiktok": "Live TikTok",
+      "regularSale": "Vente ordinaire"
+    },
+    "chooseType": "Choisir le type de session"
   },
   "customers": {
     "title": "Gestion des clients",

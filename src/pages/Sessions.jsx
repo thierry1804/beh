@@ -3,11 +3,13 @@ import { supabase } from '../lib/supabaseClient'
 import { useLocalStorage } from '../lib/useLocalStorage'
 import { Button, Card, CardContent, Chip, Stack } from '@mui/material'
 import PageHeader from '../components/PageHeader'
+import CreateSessionModal from '../components/CreateSessionModal'
 import { useTranslation } from 'react-i18next'
 
 export default function SessionsPage() {
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(false)
+  const [createModalOpen, setCreateModalOpen] = useState(false)
   const [selectedSessionId, setSelectedSessionId] = useLocalStorage('selectedSessionId', null)
   const [selectedSessionName, setSelectedSessionName] = useLocalStorage('selectedSessionName', '')
   const { t } = useTranslation()
@@ -25,13 +27,17 @@ export default function SessionsPage() {
     if (!error) setSessions(data || [])
   }
 
-  async function createSession(e) {
-    e.preventDefault()
+  async function createSession(sessionType) {
     setLoading(true)
-    const sessionName = defaultSessionName()
+    const sessionName = defaultSessionName(sessionType)
     const { data, error } = await supabase
       .from('sessions')
-      .insert([{ name: sessionName, start_at: nowIso, status: 'open' }])
+      .insert([{
+        name: sessionName,
+        session_type: sessionType,
+        start_at: nowIso,
+        status: 'open'
+      }])
       .select()
       .single()
     setLoading(false)
@@ -39,6 +45,7 @@ export default function SessionsPage() {
       setSessions((prev) => [data, ...prev])
       setSelectedSessionId(data.id)
       setSelectedSessionName(data.name)
+      setCreateModalOpen(false)
     }
   }
 
@@ -62,16 +69,14 @@ export default function SessionsPage() {
       <PageHeader
         title={t('sessions.title')}
         actions={(
-          <form onSubmit={createSession} className="toolbar" style={{ display: 'flex', gap: 8 }}>
-            <Button
-              variant="contained"
-              type="submit"
-              disabled={loading || hasOpenSession}
-              title={hasOpenSession ? t('sessions.sessionInProgress') : ""}
-            >
-              {t('sessions.create')}
-            </Button>
-          </form>
+          <Button
+            variant="contained"
+            onClick={() => setCreateModalOpen(true)}
+            disabled={loading || hasOpenSession}
+            title={hasOpenSession ? t('sessions.sessionInProgress') : ""}
+          >
+            {t('sessions.create')}
+          </Button>
         )}
       />
       <Card>
@@ -80,6 +85,7 @@ export default function SessionsPage() {
           <thead>
             <tr>
                 <th>{t('sessions.name')}</th>
+                <th>{t('sessions.type')}</th>
                 <th>{t('sessions.start')}</th>
                 <th>{t('sessions.status')}</th>
                 <th>{t('sessions.actions')}</th>
@@ -88,9 +94,26 @@ export default function SessionsPage() {
           <tbody>
             {sessions.map((s) => {
               const dt = s.start_at ? new Date(s.start_at) : null
+              // Debugging - voir ce que nous recevons
+              console.log('Session:', s.id, 'Type:', s.session_type)
+
+              // Gérer les cas où session_type pourrait être null/undefined
+              const sessionType = s.session_type || 'LIVE_TIKTOK' // valeur par défaut
+              const sessionTypeLabel = sessionType === 'LIVE_TIKTOK'
+                ? t('sessions.types.liveTiktok')
+                : t('sessions.types.regularSale')
+
               return (
                 <tr key={s.id} style={{ background: selectedSessionId === s.id ? 'rgba(124,77,255,.06)' : undefined }}>
                   <td>{s.name}</td>
+                  <td>
+                    <Chip
+                      size="small"
+                      label={sessionTypeLabel}
+                      color={sessionType === 'LIVE_TIKTOK' ? 'primary' : 'default'}
+                      variant="outlined"
+                    />
+                  </td>
                   <td>{dt ? dt.toLocaleString('fr-FR') : ''}</td>
                   <td><Chip size="small" label={s.status} color={s.status === 'open' ? 'success' : 'default'} variant={s.status === 'open' ? 'soft' : 'outlined'} /></td>
                   <td>
@@ -116,15 +139,23 @@ export default function SessionsPage() {
         </table>
         </CardContent>
       </Card>
+
+      <CreateSessionModal
+        open={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        onCreateSession={createSession}
+        loading={loading}
+      />
     </div>
   )
 }
 
-function defaultSessionName() {
+function defaultSessionName(sessionType = 'LIVE_TIKTOK') {
   const now = new Date()
   const pad = (n) => n.toString().padStart(2, '0')
   const dateStr = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()} ${pad(now.getHours())}h${pad(now.getMinutes())}`
-  return `Live ${dateStr}`
+  const prefix = sessionType === 'LIVE_TIKTOK' ? 'Live' : 'Vente'
+  return `${prefix} ${dateStr}`
 }
 
 const th = {}

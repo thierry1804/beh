@@ -6,6 +6,7 @@
 CREATE TABLE IF NOT EXISTS public.sessions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL,
+  session_type text NOT NULL DEFAULT 'LIVE_TIKTOK' CHECK (session_type IN ('LIVE_TIKTOK', 'VENTE_ORDINAIRE')),
   start_at timestamptz NOT NULL DEFAULT now(),
   status text NOT NULL DEFAULT 'open',
   closed_at timestamptz,
@@ -267,6 +268,16 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ========================================
+-- MIGRATIONS DE DONNÉES
+-- ========================================
+
+-- Migration: mettre à jour les sessions existantes sans session_type
+-- Cette migration doit être exécutée une seule fois après l'ajout du champ session_type
+UPDATE public.sessions 
+SET session_type = 'LIVE_TIKTOK' 
+WHERE session_type IS NULL;
+
+-- ========================================
 -- VUES UTILES
 -- ========================================
 
@@ -329,7 +340,8 @@ COMMENT ON TABLE public.customer_phones IS 'Téléphones multiples par client';
 COMMENT ON TABLE public.customer_addresses IS 'Adresses multiples par client';
 COMMENT ON TABLE public.orders IS 'Commandes principales avec informations de livraison et paiement';
 COMMENT ON TABLE public.order_lines IS 'Lignes de commande avec détails des produits';
-COMMENT ON TABLE public.sessions IS 'Sessions de vente';
+COMMENT ON TABLE public.sessions IS 'Sessions de vente avec type (Live TikTok ou vente ordinaire)';
+COMMENT ON COLUMN public.sessions.session_type IS 'Type de session: LIVE_TIKTOK ou VENTE_ORDINAIRE';
 COMMENT ON TABLE public.profiles IS 'Profils utilisateurs avec rôles';
 
 COMMENT ON COLUMN public.orders.order_number IS 'Numéro de commande unique';

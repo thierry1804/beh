@@ -135,6 +135,7 @@
     "title": "销售会话",
     "newSession": "新会话",
     "name": "名称",
+    "type": "类型",
     "startDate": "开始日期",
     "endDate": "结束日期",
     "status": "状态",
@@ -148,7 +149,12 @@
     "start": "开始",
     "actions": "操作",
     "sessionAlreadyActive": "会话已激活",
-    "sessionInProgress": "已有会话正在进行"
+    "sessionInProgress": "已有会话正在进行",
+    "types": {
+      "liveTiktok": "抖音直播",
+      "regularSale": "普通销售"
+    },
+    "chooseType": "选择会话类型"
   },
   "customers": {
     "title": "客户管理",
