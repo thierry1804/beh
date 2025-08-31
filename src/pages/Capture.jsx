@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import QuickOrderModal from '../components/QuickOrderModal'
+import RegularSaleModal from '../components/RegularSaleModal'
 import OrderList from '../components/OrderList'
 import { supabase } from '../lib/supabaseClient'
 import { useLocalStorage } from '../lib/useLocalStorage'
@@ -7,15 +8,17 @@ import { useNavigate } from 'react-router-dom'
 import { Button, Card, CardContent, Stack, Chip } from '@mui/material'
 import PageHeader from '../components/PageHeader'
 import { useTranslation } from 'react-i18next'
-import { getOrCreateCustomer, addLineToOrder } from '../lib/orderUtils'
+import { getOrCreateCustomer, getOrCreateCustomerByRealName, addLineToOrder, createOrderWithLines, createSimpleOrderWithLines } from '../lib/orderUtils'
 import { loadAllCustomersWithPrimaryContacts } from '../lib/customerUtils'
 
 export default function CapturePage() {
   const [selectedSessionId] = useLocalStorage('selectedSessionId', null)
   const [selectedSessionName] = useLocalStorage('selectedSessionName', '')
+  const [sessionType, setSessionType] = useState('LIVE_TIKTOK')
   const [orderLines, setOrderLines] = useState([])
   const [handles, setHandles] = useState([])
   const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
   const { t } = useTranslation()
 
@@ -46,6 +49,19 @@ export default function CapturePage() {
     if (!selectedSessionId) return
 
     try {
+      // Récupérer le type de session
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('sessions')
+        .select('session_type')
+        .eq('id', selectedSessionId)
+        .single()
+
+      if (sessionError) {
+        console.error('Erreur lors du chargement de la session:', sessionError)
+      } else {
+        setSessionType(sessionData?.session_type || 'LIVE_TIKTOK')
+      }
+
       // Charger les lignes de commande de la session actuelle
       const { data: linesData, error: linesError } = await supabase
         .from('order_lines')
@@ -177,6 +193,72 @@ export default function CapturePage() {
     }
   }
 
+  // Fonction pour gérer les ventes ordinaires (VERSION SIMPLIFIÉE)
+  async function handleRegularSaleSubmit(orderData) {
+    if (!selectedSessionId) return
+
+    console.log('🚀 NOUVELLE VERSION - Création vente ordinaire')
+    console.log('Session ID:', selectedSessionId)
+    console.log('Type de session:', sessionType)
+    console.log('Données commande complètes:', orderData)
+
+    setLoading(true)
+    try {
+      // 1. Créer le client
+      const { data: customer, error: customerError } = await getOrCreateCustomerByRealName(orderData.customerName, orderData.customerPhone)
+      if (customerError) {
+        console.error('❌ Erreur client:', customerError)
+        setLoading(false)
+        return
+      }
+      console.log('✅ Client créé/récupéré:', customer)
+
+      // 2. Ajouter téléphone (vérification préalable)
+      if (orderData.customerPhone) {
+        const { data: existingPhone } = await supabase
+          .from('customer_phones')
+          .select('id')
+          .eq('customer_id', customer.id)
+          .eq('phone', orderData.customerPhone)
+          .maybeSingle()
+
+        if (!existingPhone) {
+          await supabase
+            .from('customer_phones')
+            .insert({
+              customer_id: customer.id,
+              phone: orderData.customerPhone,
+              is_primary: true
+            })
+          console.log('✅ Téléphone ajouté')
+        } else {
+          console.log('ℹ️ Téléphone déjà existant')
+        }
+      }
+
+      // 3. Créer commande + lignes avec nouvelle fonction
+      const { data: order, error: orderError } = await createSimpleOrderWithLines(
+        selectedSessionId,
+        customer.id,
+        orderData.articles
+      )
+
+      if (orderError) {
+        console.error('❌ Erreur création commande:', orderError)
+        setLoading(false)
+        return
+      }
+
+      console.log('🎉 SUCCÈS TOTAL - Commande créée:', order)
+      setOpen(false)
+      await reload()
+    } catch (err) {
+      console.error('💥 ERREUR GLOBALE:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="page">
       <PageHeader
@@ -185,7 +267,7 @@ export default function CapturePage() {
           <Stack direction="row" spacing={1}>
             <Chip label={sessionLabel} />
             <Button variant="contained" onClick={() => setOpen(true)}>
-              {t('capture.newOrder')}
+              {sessionType === 'VENTE_ORDINAIRE' ? 'Nouvelle vente' : t('capture.newOrder')}
               <span className="keyboard-key">{t('capture.newOrderKey')}</span>
             </Button>
             <Button variant="outlined" onClick={() => navigate('/sessions')}>{t('capture.changeSession')}</Button>
@@ -198,13 +280,27 @@ export default function CapturePage() {
       ) : (
         <>
             <OrderList orderLines={orderLines} />
-            <QuickOrderModal
-              open={open}
-              onClose={() => setOpen(false)}
-              onSubmit={handleSubmit}
-              knownHandles={handles}
-              existingCodes={existingCodes}
-            />
+
+            {/* Modal pour Live TikTok */}
+            {sessionType === 'LIVE_TIKTOK' && (
+              <QuickOrderModal
+                open={open}
+                onClose={() => setOpen(false)}
+                onSubmit={handleSubmit}
+                knownHandles={handles}
+                existingCodes={existingCodes}
+              />
+            )}
+
+            {/* Modal pour Vente Ordinaire */}
+            {sessionType === 'VENTE_ORDINAIRE' && (
+              <RegularSaleModal
+                open={open}
+                onClose={() => setOpen(false)}
+                onSubmit={handleRegularSaleSubmit}
+                loading={loading}
+              />
+            )}
         </>
       )}
     </div>

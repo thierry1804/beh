@@ -23,6 +23,46 @@ export async function getOrCreateCustomer(tiktokName, realName = null) {
 }
 
 /**
+ * Créer ou récupérer un client pour une vente ordinaire (par nom réel)
+ */
+export async function getOrCreateCustomerByRealName(realName, phone = null) {
+  try {
+    console.log('Création client pour vente ordinaire:', realName, phone)
+
+    // D'abord, chercher un client existant avec le même nom réel
+    const { data: existingCustomer } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('real_name', realName)
+      .limit(1)
+      .maybeSingle()
+
+    if (existingCustomer) {
+      console.log('Client existant trouvé:', existingCustomer)
+      return { data: existingCustomer, error: null }
+    }
+
+    // Si pas trouvé, créer un nouveau client
+    // Générer un tiktok_name unique basé sur le nom réel pour éviter les conflits
+    const tiktokName = `@${realName.toLowerCase().replace(/\s+/g, '_')}_${Date.now().toString().slice(-6)}`
+
+    const { data, error } = await supabase
+      .from('customers')
+      .insert([{ tiktok_name: tiktokName, real_name: realName }])
+      .select()
+      .single()
+
+    if (error) throw error
+
+    console.log('Nouveau client créé:', data)
+    return { data, error: null }
+  } catch (err) {
+    console.error('Erreur lors de la création du client:', err)
+    return { data: null, error: err }
+  }
+}
+
+/**
  * Créer ou récupérer un téléphone pour un client
  */
 export async function getOrCreateCustomerPhone(customerId, phone) {
@@ -145,26 +185,160 @@ export async function createOrderWithLines(sessionId, customerId, orderData, lin
     if (orderError) throw orderError
 
     // 2. Créer les lignes de commande
+    console.log('createOrderWithLines - Lines reçues:', lines)
+    console.log('createOrderWithLines - Condition lines:', lines && lines.length > 0)
+
     if (lines && lines.length > 0) {
-      const orderLines = lines.map(line => ({
-        order_id: order.id,
-        code: line.code,
-        description: line.description,
-        unit_price: line.unit_price,
-        quantity: line.quantity,
-        line_total: line.unit_price * line.quantity
-      }))
+      console.log('createOrderWithLines - Lignes reçues:', lines)
+      const orderLines = lines.map(line => {
+        const unitPrice = parseFloat(line.unit_price)
+        const quantity = parseInt(line.quantity)
+
+        if (isNaN(unitPrice) || unitPrice <= 0) {
+          throw new Error(`Prix unitaire invalide pour l'article "${line.description}": ${line.unit_price}`)
+        }
+
+        if (isNaN(quantity) || quantity <= 0) {
+          throw new Error(`Quantité invalide pour l'article "${line.description}": ${line.quantity}`)
+        }
+
+        return {
+          order_id: order.id,
+          code: line.code || 'JP',
+          description: line.description,
+          unit_price: unitPrice,
+          quantity: quantity,
+          line_total: unitPrice * quantity
+        }
+      })
+
+      console.log('createOrderWithLines - Lignes préparées:', orderLines)
 
       const { error: linesError } = await supabase
         .from('order_lines')
         .insert(orderLines)
 
-      if (linesError) throw linesError
+      if (linesError) {
+        console.error('Erreur lors de l\'insertion des lignes:', linesError)
+        throw linesError
+      }
+
+      console.log('createOrderWithLines - Lignes créées avec succès')
+    } else {
+      console.warn('createOrderWithLines - Aucune ligne à créer!')
     }
 
     return { data: order, error: null }
   } catch (err) {
-    console.error('Erreur lors de la création de la commande:', err)
+    console.error('Erreur lors de la création de la commande avec détails:', err)
+    console.error('Session ID:', sessionId)
+    console.error('Customer ID:', customerId)
+    console.error('Order data:', orderData)
+    console.error('Lines data:', lines)
+    return { data: null, error: err }
+  }
+}
+
+/**
+ * Créer une commande simple pour ventes ordinaires (version alternative)
+ */
+export async function createSimpleOrderWithLines(sessionId, customerId, articles) {
+  console.log('=== createSimpleOrderWithLines DÉBUT ===')
+  console.log('Session ID:', sessionId)
+  console.log('Customer ID:', customerId)
+  console.log('Articles reçus:', articles)
+
+  try {
+    // 1. Créer la commande
+    const orderNumber = `CMD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .insert([{
+        session_id: sessionId,
+        customer_id: customerId,
+        order_number: orderNumber,
+        order_status: 'CHECKOUT EN COURS'
+      }])
+      .select()
+      .single()
+
+    if (orderError) {
+      console.error('Erreur création commande:', orderError)
+      throw orderError
+    }
+
+    console.log('Commande créée:', order)
+
+    // 2. Créer les lignes une par une avec validation
+    for (let i = 0; i < articles.length; i++) {
+      const article = articles[i]
+      console.log(`--- Article ${i + 1}/${articles.length} ---`)
+      console.log('Article brut:', article)
+
+      // Validation stricte
+      const unitPrice = parseFloat(article.unit_price)
+      const quantity = parseInt(article.quantity)
+
+      console.log('Prix converti:', unitPrice, 'Type:', typeof unitPrice)
+      console.log('Quantité convertie:', quantity, 'Type:', typeof quantity)
+
+      if (isNaN(unitPrice) || unitPrice <= 0) {
+        console.error(`Prix invalide pour article ${i + 1}:`, article.unit_price)
+        continue // Passer au suivant
+      }
+
+      if (isNaN(quantity) || quantity <= 0) {
+        console.error(`Quantité invalide pour article ${i + 1}:`, article.quantity)
+        continue // Passer au suivant
+      }
+
+      const lineData = {
+        order_id: order.id,
+        code: article.code || 'JP',
+        description: article.description || `Article ${i + 1}`,
+        unit_price: unitPrice,
+        quantity: quantity,
+        line_total: unitPrice * quantity
+      }
+
+      console.log('🔍 Données ligne à insérer (stringifiées):', JSON.stringify(lineData, null, 2))
+      console.log('🔍 Types:', {
+        unit_price: typeof lineData.unit_price,
+        quantity: typeof lineData.quantity,
+        line_total: typeof lineData.line_total
+      })
+
+      // Double-vérification avant insertion
+      if (!lineData.unit_price || lineData.unit_price <= 0) {
+        console.error('❌ ARRÊT: unit_price invalide avant insertion:', lineData.unit_price)
+        continue
+      }
+
+      const { error: lineError } = await supabase
+        .from('order_lines')
+        .insert([{
+          order_id: lineData.order_id,
+          code: lineData.code,
+          description: lineData.description,
+          unit_price: Number(lineData.unit_price), // Force conversion
+          quantity: Number(lineData.quantity),     // Force conversion  
+          line_total: Number(lineData.line_total)  // Force conversion
+        }])
+
+      if (lineError) {
+        console.error(`Erreur insertion ligne ${i + 1}:`, lineError)
+      } else {
+        console.log(`✅ Ligne ${i + 1} créée avec succès`)
+      }
+    }
+
+    console.log('=== createSimpleOrderWithLines SUCCÈS ===')
+    return { data: order, error: null }
+
+  } catch (err) {
+    console.error('=== createSimpleOrderWithLines ERREUR ===')
+    console.error('Erreur:', err)
     return { data: null, error: err }
   }
 }

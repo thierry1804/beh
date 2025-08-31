@@ -94,9 +94,6 @@ export default function SessionsPage() {
           <tbody>
             {sessions.map((s) => {
               const dt = s.start_at ? new Date(s.start_at) : null
-              // Debugging - voir ce que nous recevons
-              console.log('Session:', s.id, 'Type:', s.session_type)
-
               // Gérer les cas où session_type pourrait être null/undefined
               const sessionType = s.session_type || 'LIVE_TIKTOK' // valeur par défaut
               const sessionTypeLabel = sessionType === 'LIVE_TIKTOK'

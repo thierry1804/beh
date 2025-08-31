@@ -17,7 +17,8 @@ export default function PendingPage() {
   useEffect(() => { void reload() }, [])
 
   async function reload() {
-    const { data, error } = await supabase
+    // Construction de la requête Supabase
+    const query = supabase
       .from('order_lines')
       .select(`
         id,
@@ -31,13 +32,43 @@ export default function PendingPage() {
           customer_id,
           session_id,
           order_status,
-          customers!inner(tiktok_name),
+          customers!inner(tiktok_name, real_name),
           sessions!inner(name, start_at)
         )
       `)
       .in('orders.order_status', ['CHECKOUT EN COURS', 'CREEE'])
       .order('created_at', { ascending: false })
       .limit(2000)
+
+    // Affichage de la requête SQL équivalente
+    console.log('📋 REQUÊTE SQL ÉQUIVALENTE POUR LES COMMANDES EN ATTENTE:')
+    console.log(`
+SELECT 
+  ol.id,
+  ol.code,
+  ol.description,
+  ol.unit_price,
+  ol.quantity,
+  ol.line_total,
+  ol.created_at,
+  o.id as order_id,
+  o.customer_id,
+  o.session_id,
+  o.order_status,
+  c.tiktok_name,
+  c.real_name,
+  s.name as session_name,
+  s.start_at
+FROM order_lines ol
+INNER JOIN orders o ON ol.order_id = o.id
+INNER JOIN customers c ON o.customer_id = c.id
+INNER JOIN sessions s ON o.session_id = s.id
+WHERE o.order_status IN ('CHECKOUT EN COURS', 'CREEE')
+ORDER BY ol.created_at DESC
+LIMIT 2000;
+    `)
+
+    const { data, error } = await query
 
     console.log(t('messages.dataRetrieved') + ':', data)
     console.log(t('messages.error') + ':', error)
@@ -51,12 +82,15 @@ export default function PendingPage() {
 
     // D'abord, grouper par client
     for (const r of rows) {
-      const customerKey = r.orders?.customers?.tiktok_name
+      const customer = r.orders?.customers
+      const customerKey = customer?.tiktok_name
       const sessionKey = r.orders?.sessions?.name || t('pending.unknownSession')
 
       // Grouper par client
       const customerPrev = customerMap.get(customerKey) || {
         tiktok_name: customerKey,
+        real_name: customer?.real_name,
+        display_name: customer?.real_name || customerKey, // Préférer le nom réel s'il existe
         session_name: sessionKey,
         session_start: r.orders?.sessions?.start_at,
         total_qty: 0,
@@ -101,7 +135,10 @@ export default function PendingPage() {
     if (query) {
       arr = arr.filter((g) =>
         (g.session_name || '').toLowerCase().includes(query.toLowerCase()) ||
-        g.customers.some(c => (c.tiktok_name || '').toLowerCase().includes(query.toLowerCase()))
+        g.customers.some(c =>
+          (c.tiktok_name || '').toLowerCase().includes(query.toLowerCase()) ||
+          (c.real_name || '').toLowerCase().includes(query.toLowerCase())
+        )
       )
     }
     return arr.sort((a, b) => b.subtotal - a.subtotal)
@@ -144,7 +181,7 @@ export default function PendingPage() {
                   {session.customers.map((customer) => (
                     <tr key={`customer-${customer.tiktok_name}`} style={{ backgroundColor: '#fafafa' }}>
                       <td style={{ paddingLeft: '2rem' }}></td>
-                      <td>{customer.tiktok_name}</td>
+                      <td>{customer.display_name}</td>
                       <td style={{ textAlign: 'right' }}>{customer.total_qty}</td>
                       <td style={{ textAlign: 'right' }}>{customer.subtotal.toLocaleString('fr-FR')}</td>
                       <td>
